@@ -71,7 +71,7 @@ Les événements détectés (images, vidéos et logs) sont sauvegardés dans dat
 
 ### Organisation du projet
 
-src/ : Modules Python (modèles, prétraitement, utilitaires)
+**src/**: Modules Python (modèles, prétraitement, utilitaires)
 
 scripts/ : Scripts d’exécution (entraînement, prédiction, temps réel)
 
