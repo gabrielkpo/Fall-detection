@@ -1,5 +1,7 @@
 # Organisation du projet
 
+La détection automatique de chutes est cruciale pour protéger les personnes âgées ou à mobilité réduite. En combinant analyse vidéo et IA, via des réseaux de neurones profonds, elle identifie rapidement les chutes à partir d’images ou de coordonnées articulaires, permettant une intervention rapide et efficace.
+
 ## Dossiers principaux
 
 - `src/` : Modules Python réutilisables (modèles, utilitaires, etc.)
