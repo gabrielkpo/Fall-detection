@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.npy
+models/
+data/raw/
+data/processed/
+data/events/
+data/videos/
+*.zip
+*.mp4
+*.MOV
+*.wav
+.DS_Store
