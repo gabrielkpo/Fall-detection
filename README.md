@@ -127,39 +127,39 @@ Les événements détectés (images, vidéos et logs) sont sauvegardés dans dat
 
 ## Résultats et métriques
 
-Précision globale satisfaisante (>90% sur données de validation)
+- Précision globale satisfaisante (>90% sur données de validation)
 
-Bonne capacité de généralisation aux mouvements variés
+- Bonne capacité de généralisation aux mouvements variés
 
-Quelques limites observées pour les changements extrêmes d’angle de caméra
+- Quelques limites observées pour les changements extrêmes d’angle de caméra
 
 ---
 
 ## Axes d’amélioration
 
-Intégration de vidéos multi-caméras
+- Intégration de vidéos multi-caméras
 
-Hybridation CNN + LSTM pour capter les dépendances temporelles longues
+- Hybridation CNN + LSTM pour capter les dépendances temporelles longues
 
-Enrichissement du dataset par des scénarios plus variés
+- Enrichissement du dataset par des scénarios plus variés
 
-Optimisation du modèle pour déploiement sur appareils embarqués (Raspberry Pi, IoT)
+- Optimisation du modèle pour déploiement sur appareils embarqués (Raspberry Pi, IoT)
 
 ---
 
 ## Dépendances
 
-Python 3.8+
+- Python 3.8+
 
-MediaPipe
+- MediaPipe
 
-OpenCV
+- OpenCV
 
-NumPy / Pandas
+- NumPy / Pandas
 
-PyTorch / TensorFlow (selon implémentation)
+- PyTorch / TensorFlow (selon implémentation)
 
-Matplotlib / Seaborn (visualisation)
+- Matplotlib / Seaborn (visualisation)
 
 ---
 
