@@ -73,16 +73,52 @@ Les événements détectés (images, vidéos et logs) sont sauvegardés dans dat
 
 **src/**: Modules Python (modèles, prétraitement, utilitaires)
 
-scripts/ : Scripts d’exécution (entraînement, prédiction, temps réel)
+**scripts/** : Scripts d’exécution (entraînement, prédiction, temps réel)
 
-data/raw/ : Données brutes (vidéos originales)
+**data/raw/** : Données brutes (vidéos originales)
 
-data/processed/ : Données transformées (séquences, features)
+**data/processed/** : Données transformées (séquences, features)
 
-data/videos/ : Vidéos de test
+**data/videos/** : Vidéos de test
 
-data/events/ : Enregistrements de chutes détectées
+**data/events/** : Enregistrements de chutes détectées
 
-models/ : Modèles sauvegardés
+**models/** : Modèles sauvegardés
 
-notebooks/ : Expérimentations et analyses Jupyter
+**notebooks/** : Expérimentations et analyses Jupyter
+
+---
+
+### Modèle et entraînement
+
+**Architecture CNN 1D** :
+
+3 couches convolutives
+
+32 filtres, kernel size = 5
+
+AdaptiveMaxPool1d en sortie
+
+**Fonction de perte** : Binary Cross-Entropy
+
+**Métriques** : Accuracy, Precision, Recall, F1-score
+
+**Stratégies anti-surapprentissage** :
+
+Dropout / Weight Decay
+
+Early Stopping
+
+Augmentation de données
+
+---
+
+###Système d’alerte
+
+Détection en temps réel via webcam
+
+Alerte sonore immédiate en cas de chute
+
+Sauvegarde vidéo + image clé pour analyse ultérieure
+
+Notifications configurables pour surveillance à distance
