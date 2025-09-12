@@ -66,3 +66,23 @@ python scripts/predict.py --video data/videos/test_video.mp4
 ```
 
 Les événements détectés (images, vidéos et logs) sont sauvegardés dans data/events/.
+
+---
+
+### Organisation du projet
+
+src/ : Modules Python (modèles, prétraitement, utilitaires)
+
+scripts/ : Scripts d’exécution (entraînement, prédiction, temps réel)
+
+data/raw/ : Données brutes (vidéos originales)
+
+data/processed/ : Données transformées (séquences, features)
+
+data/videos/ : Vidéos de test
+
+data/events/ : Enregistrements de chutes détectées
+
+models/ : Modèles sauvegardés
+
+notebooks/ : Expérimentations et analyses Jupyter
