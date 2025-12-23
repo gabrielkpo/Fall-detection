@@ -63,11 +63,12 @@ python scripts/run_realtime.py
 ```
 
 ### 2. Model Training
+### 3. Inference on video files
 To retrain the **1D CNN model** using your own preprocessed dataset, use the following command:
 
 ```bash
 python scripts/train.py --data data/processed --epochs 50
-
+```
 ---
 
 ### 3. Inference on Video Files
@@ -75,7 +76,7 @@ To run the fall detection model on a pre-recorded video file:
 
 ```bash
 python scripts/predict.py --video data/videos/test_video.mp4
-
+```
 ### 📂 Data Storage & Logs
 Every time a fall is detected, the system generates a report stored in the `data/events/` directory. Each event includes:
 * **Keyframes**: High-quality images captured during the fall.
@@ -176,7 +177,6 @@ A: Place your video files in the `data/raw/` directory, then use `scripts/prepro
 A: Yes. By expanding the dataset and adjusting the classification labels, the model can be retrained to recognize other specific gestures or behaviors.
 ---
 
----
 
 ## Author
 
