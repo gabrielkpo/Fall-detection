@@ -68,6 +68,8 @@ To retrain the **1D CNN model** using your own preprocessed dataset, use the fol
 ```bash
 python scripts/train.py --data data/processed --epochs 50
 
+---
+
 ### 3. Inference on Video Files
 To run the fall detection model on a pre-recorded video file:
 
