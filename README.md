@@ -59,7 +59,7 @@ This project supports real-time detection via webcam, model training, and infere
 ### 1. Real-time Execution (Webcam)
 To start the fall detection system using your default camera:
 ```bash
-python scripts/run_realtime.py
+python scripts/cnn_fall_test_song_notif.py
 ```
 
 ### 2. Model Training
