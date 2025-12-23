@@ -1,4 +1,5 @@
 # Détection Automatique de Chutes
+<img width="1439" height="792" alt="Capture d’écran 2025-12-23 à 10 59 01" src="https://github.com/user-attachments/assets/9747a6d7-0369-4107-bd44-1760edcebc60" />
 
 Une application Python basée sur l’IA pour détecter automatiquement les chutes à partir de vidéos.  
 Elle utilise **MediaPipe** pour extraire les coordonnées articulaires et un **réseau de neurones convolutif 1D (CNN)** pour analyser les séquences temporelles et identifier les chutes en temps réel.  
