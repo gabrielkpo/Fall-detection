@@ -3,8 +3,7 @@
 This Python project leverages AI to automatically detect falls in video streams. 
 It uses **MediaPipe** to extract body joint coordinates and a **1D Convolutional Neural Network (CNN)** to analyze temporal sequences and identify falls in real-time. The system includes an integrated alert system (audio and notifications) to ensure rapid and effective intervention.
 
-<img width="1439" height="792" alt="Capture d’écran 2025-12-23 à 10 59 01" src="https://github.com/user-attachments/assets/9747a6d7-0369-4107-bd44-1760edcebc60" />
-
+<img width="1439" height="792" alt="Capture d’écran 2025-12-23 à 10 59 01" src="https://github.com/user-attachments/assets/ed506a0a-43d9-4db4-b118-7c7eacd9737f" />
 
 ---
 
