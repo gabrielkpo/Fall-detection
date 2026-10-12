@@ -60,3 +60,18 @@ bottleneck: about 0.2 s per frame measured in the Docker image on an Apple Silic
 - The model has no "not a person" class: random landmark values are scored as a fall with
   probability 1.0 (checked on the served API). Input must come from a pose detector.
 - The training frame rate is not recorded; the demo feeds consecutive frames of the uploaded video.
+
+## In-browser demo parity
+
+The static demo uses MediaPipe's JavaScript Pose Landmarker and the ONNX export of the model.
+Checked on the same 8 s clip (window scores, stride 15):
+
+| Window | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|
+| Python (`mp.solutions.pose`) | 0.0007 | 0.0126 | 0.2523 | 0.8100 | 0.8683 | 0.7982 |
+| Browser (Tasks API + ONNX) | 0.0007 | 0.0106 | 0.2287 | 0.8192 | 0.8903 | 0.8290 |
+
+ONNX vs PyTorch: max absolute difference 0 on 64 random windows. The browser path must resize
+frames to 640x480 first (as the training extraction did): without it, the z coordinates differ by
+a factor of about 2 and every window scores at the floor value. Differences up to about 0.03 remain
+between the two MediaPipe implementations; this has been checked on one clip only.

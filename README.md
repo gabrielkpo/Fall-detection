@@ -10,25 +10,36 @@ flowchart LR
     A[PR] --> B["CI: ruff, pytest, gitleaks, CodeQL, Docker build"]
     B --> C[Merge to main]
     C --> D["release-please: version + changelog"]
-    D --> E[Docker image]
-    E --> F["Hugging Face Space: demo + API"]
-    F --> G["Anonymous feature stats (no video)"]
-    G --> H["Monthly drift check (cron)"]
-    H -->|drift| I[Issue + report]
-    I --> J["Retrain candidate"]
-    J --> K["Evaluate vs champion (CI rule)"]
-    K -->|better| L["PR: promote models/champion.json"]
-    L --> C
+    C --> E["GitHub Pages: in-browser demo (ONNX + MediaPipe JS)"]
+    D --> F["Docker image + FastAPI service (self-hosted)"]
+    F --> G["Monthly drift check (cron, reference vs perturbed batches)"]
+    G -->|drift| H[Issue + report]
+    H --> I["Retrain candidate"]
+    I --> J["Evaluate vs champion (CI rule)"]
+    J -->|better| K["PR: promote models/champion.json"]
+    K --> C
 ```
 
 | Stage | Status | Where |
 |---|---|---|
 | CI, security scans, release automation | in place | `.github/workflows/` |
 | Out-of-video evaluation | in place | [docs/EVALUATION.md](docs/EVALUATION.md) |
-| API + Docker + demo | in this release | `src/fall_detection/api.py`, `Dockerfile` |
+| In-browser demo (no server, nothing uploaded) | in this release | `site/`, `scripts/export_onnx.py` |
+| API + Docker | in this release | `src/fall_detection/api.py`, `Dockerfile` |
 | Monitoring (drift), promotion rule | planned | next PRs |
 
 > Research prototype, **not a safety system**: out-of-video accuracy 82 %, recall 67 %.
+
+## Demo
+
+`site/index.html` is a static page: MediaPipe Pose Landmarker (JS) extracts the landmarks and the
+exported ONNX model (`site/model.onnx`, 127 KB) scores each 30-frame window, all in the browser.
+Hosting is free (GitHub Pages) and the video never leaves the machine.
+Locally: `python -m http.server -d site` then open http://localhost:8000.
+Regenerate the model after a promotion: `python scripts/export_onnx.py`.
+
+Hugging Face Docker and Gradio Spaces require a paid plan, which is why the public demo is static.
+The Docker image below runs the same model behind an API wherever you can host a container.
 
 ## API
 
