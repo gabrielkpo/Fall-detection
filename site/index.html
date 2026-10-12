@@ -182,16 +182,16 @@ async function tick() {
       meter.classList.toggle("over", s > THRESHOLD);
       drawSpark();
       window.__live = { scores: scores.slice(), alert: now < alertUntil };
-    } else if (!lms) {
-      statusEl.textContent = "No person detected: stay fully in frame.";
     }
   }
   const alerting = now < alertUntil;
   banner.textContent = alerting ? "FALL DETECTED" : "No fall";
   banner.classList.toggle("fall", alerting);
   const fps = frames / Math.max(0.001, (now - t0) / 1000);
-  if (lms) statusEl.textContent = `Live: ${fps.toFixed(1)} frames/s analysed` +
-    (fps < 8 ? " (slow device: detection may be unreliable)" : "");
+  statusEl.textContent = lms
+    ? `Live: ${fps.toFixed(1)} frames/s analysed` +
+      (fps < 8 ? " (slow device: detection may be unreliable)" : "")
+    : `Live: ${fps.toFixed(1)} frames/s, no person detected: stay fully in frame.`;
   schedule();
 }
 
@@ -209,8 +209,8 @@ function schedule() {
   else requestAnimationFrame(() => tick());
 }
 
+// Callers stop() the previous source first: stop() also ends the tracks of `stream`.
 async function start(src, isFile) {
-  stop();
   fromFile = isFile;
   buffer = []; scores = []; over = 0; alertUntil = 0; frames = 0; lastEval = 0;
   if (isFile) { video.srcObject = null; video.src = src; video.loop = true; }
@@ -231,6 +231,7 @@ function stop() {
 }
 
 $("cam").addEventListener("click", async () => {
+  stop();
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
     await start(stream, false);
@@ -240,6 +241,7 @@ $("cam").addEventListener("click", async () => {
 });
 $("file").addEventListener("change", () => {
   const f = $("file").files[0];
+  if (f) stop();
   if (f) start(URL.createObjectURL(f), true).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
 });
 $("stop").addEventListener("click", () => { stop(); $("stop").hidden = true; statusEl.textContent = "Stopped."; });
