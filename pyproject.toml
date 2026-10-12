@@ -18,7 +18,7 @@ serve = [
   "opencv-python-headless>=4.8,<5",
   "mediapipe==0.10.18",
   "gradio>=5.0,<6",
-  "numpy<2.0",
+  "numpy<3.0",
 ]
 export = ["onnx", "onnxruntime"]
 dev = ["pytest>=8.0", "ruff>=0.5", "httpx", "scikit-learn>=1.3"]
