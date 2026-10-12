@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image (no push)
-        run: docker build -t fall-detection:ci .
+        run: docker build -f docker/Dockerfile -t fall-detection:ci .
       - name: Smoke test
         run: |
           docker run -d --name fd -p 7860:7860 fall-detection:ci

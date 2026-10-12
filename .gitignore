@@ -7,6 +7,7 @@ models/*
 !models/champion.pth
 !models/champion.json
 !models/frozen_split.json
+!models/monitoring_reference.json
 data/raw/
 data/processed/
 data/events/
@@ -17,4 +18,4 @@ data/videos/
 *.wav
 .DS_Store
 reports/
-monitoring/current.jsonl
+models/monitoring_current.jsonl
