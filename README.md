@@ -131,12 +131,10 @@ The system is designed to provide immediate feedback and documentation whenever 
 
 ## Results and Metrics
 
-The model's performance was evaluated using a dedicated validation dataset, yielding the following observations:
-
-- **High Accuracy**: Achieved a global accuracy of **>90%** on the validation set.
-- **Strong Generalization**: Demonstrated robust performance across various movement types and speeds.
-- **Robustness**: Effectively distinguishes between daily activities and actual fall events.
-- **Identified Limitations**: Some performance drops were observed under extreme camera angle changes or severe occlusions.
+Out-of-video evaluation (5-fold, grouped by video, 294 windows): **accuracy 82 %, precision 78 %,
+recall 67 %, F1 0.72**. About one fall in three is missed, so this is a research prototype, not a
+safety system. Protocol, confidence intervals, sensitivity analysis and limits:
+[docs/EVALUATION.md](docs/EVALUATION.md).
 
 ---
 
