@@ -1,14 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jun  1 21:33:17 2025
-
-@author: gabriel
-"""
+"""1D CNN that classifies a pose-landmark sequence as fall / no fall."""
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class FallCNN1D(nn.Module):
@@ -20,7 +14,7 @@ class FallCNN1D(nn.Module):
         input_channels : nombre de "capteurs" d'entrée (ex : 33 points MediaPipe × 4 coordonnées = 132).
         seq_length : longueur de la séquence temporelle (nombre de frames analysées, ex : 30 frames à 30 FPS).
         """
-        super(FallCNN1D, self).__init__()
+        super().__init__()
 
         """
         Couche convolutionnelle 1 : détection des patterns rapides

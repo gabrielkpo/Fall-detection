@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  2 14:09:10 2025
+"""Real-time fall detection with an audio alarm, a desktop notification and keyframe capture.
 
-@author: gabriel
-
-Pour exécuter le script dans le terminal : 
-cd ~/Desktop/Perso/projet_info/Reco_mouv/cnn_fall
-python3 cnn_fall_test_song_notif.py
+Run from the repository root:
+    python scripts/run_webcam_alerts.py
 """
 
 import os
@@ -15,7 +11,7 @@ import datetime
 import platform
 import torch
 import numpy as np
-from cnn_fall import FallCNN1D
+from fall_detection.model import FallCNN1D
 import cv2
 import mediapipe as mp
 from collections import deque
@@ -24,7 +20,7 @@ import time
 
 # Init pygame pour son
 pygame.mixer.init()
-pygame.mixer.music.load("alarm.wav")
+pygame.mixer.music.load("assets/alarm.wav")
 
 def start_alarm():
     if not pygame.mixer.music.get_busy():
@@ -51,7 +47,7 @@ else:
 
 # Charger modèle
 model = FallCNN1D(input_channels=132, seq_length=30)
-model.load_state_dict(torch.load("best_model.pth"))
+model.load_state_dict(torch.load("models/best_model.pth"))
 model.eval()
 
 def predict_fall(sequence_30x132):
