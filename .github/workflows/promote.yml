@@ -1,0 +1,58 @@
+name: Model promotion
+# Trains a candidate, compares it with the champion on the frozen test split and, only if the
+# lower bound of the 95% paired-bootstrap CI of the F1 gain is > 0, opens a promotion PR.
+#
+# Needs (owner-managed): secret DATA_URL pointing to a PRIVATE copy of data/processed.tar.gz,
+# and secret PROMOTE_TOKEN (GitHub App token or fine-grained PAT, contents + pull-requests write)
+# so that the opened PR triggers the required checks. Skipped until DATA_URL exists.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    env:
+      HAS_DATA: ${{ secrets.DATA_URL != '' }}
+    steps:
+      - name: Check prerequisites
+        run: |
+          if [ "$HAS_DATA" != "true" ]; then
+            echo "DATA_URL secret not configured: nothing to do."; exit 0
+          fi
+      - uses: actions/checkout@v4
+        if: env.HAS_DATA == 'true'
+      - uses: actions/setup-python@v5
+        if: env.HAS_DATA == 'true'
+        with:
+          python-version: "3.11"
+      - name: Install and fetch data
+        if: env.HAS_DATA == 'true'
+        env:
+          DATA_URL: ${{ secrets.DATA_URL }}
+        run: |
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch numpy scikit-learn onnx onnxruntime
+          pip install -e . --no-deps
+          mkdir -p data/processed
+          curl -fsSL "$DATA_URL" | tar -xz -C data/processed
+      - id: compare
+        if: env.HAS_DATA == 'true'
+        run: |
+          python -m fall_detection.promotion train --data data/processed
+          python -m fall_detection.promotion compare --data data/processed --apply
+      - name: Re-export the browser model
+        if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
+        run: python scripts/export_onnx.py
+      - name: Open the promotion PR
+        if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.PROMOTE_TOKEN }}
+          branch: model/promote
+          title: "feat(model): promote candidate to champion"
+          commit-message: "feat(model): promote candidate to champion"
+          body-path: reports/promotion.json
+          add-paths: |
+            models/champion.pth
+            models/champion.json
+            site/model.onnx

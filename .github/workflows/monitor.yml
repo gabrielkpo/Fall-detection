@@ -1,0 +1,40 @@
+name: Monthly drift check
+on:
+  schedule:
+    - cron: "0 6 1 * *"  # 1st of each month, 06:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch numpy
+          pip install -e . --no-deps
+      - id: monitor
+        run: python scripts/monitor.py --out reports
+      - name: Publish report in the job summary
+        run: cat reports/drift.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: reports/
+      - name: Fail if the monitor itself is broken
+        if: steps.monitor.outputs.selftest != 'true'
+        run: |
+          echo "Monitor self-test failed" >&2
+          exit 1
+      - name: Open an issue when drift is detected
+        if: steps.monitor.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "Drift detected ($(date +%Y-%m))" \
+            --label drift --body-file reports/drift.md || \
+          gh issue create --title "Drift detected ($(date +%Y-%m))" --body-file reports/drift.md
