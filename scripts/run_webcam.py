@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Created on Sun Jun  1 21:34:09 2025
+"""Real-time fall detection on the default webcam.
 
-@author: gabriel
-
-Pour exécuter le script dans le terminal : 
- 
-cd ~/Desktop/Perso/projet_info/Reco_mouv/cnn_fall
-python3 cnn_fall_test.py
-
+Run from the repository root:
+    python scripts/run_webcam.py
 """
 
 
 import torch
 import numpy as np
-from cnn_fall import FallCNN1D
+from fall_detection.model import FallCNN1D
 import cv2
 import mediapipe as mp
 from collections import deque
 
 # === Charger le modèle ===
 model = FallCNN1D(input_channels=132, seq_length=30)
-model.load_state_dict(torch.load("best_model.pth"))
+model.load_state_dict(torch.load("models/best_model.pth"))
 model.eval()
 
 # === Prédiction ===

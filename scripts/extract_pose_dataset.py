@@ -130,7 +130,7 @@ Ils seront utilisés dans un futur script d'entraînement de modèle.
 X = np.array(X)
 y = np.array(y)
 
-np.save("X.npy", X)
-np.save("y.npy", y)
+np.save("data/processed/X.npy", X)
+np.save("data/processed/y.npy", y)
 
 print(f"Enregistrement terminé : {X.shape[0]} séquences, forme = {X.shape}")

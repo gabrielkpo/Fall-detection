@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sun Jun  1 21:56:57 2025
+"""Recognise a fall from a video or webcam stream (MediaPipe pose + CNN).
 
-@author: gabriel
-
-Pour exécuter le script dans le terminal : 
- 
-cd ~/Desktop/Perso/projet_info/Reco_mouv/cnn_fall
-python3 ai_reconize_fall.py
-
-
+Run from the repository root:
+    python scripts/recognize_fall.py
 """
 
 # %%
