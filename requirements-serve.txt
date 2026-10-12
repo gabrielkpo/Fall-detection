@@ -1,0 +1,7 @@
+numpy>=1.24,<2.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+opencv-python-headless>=4.8,<5
+mediapipe==0.10.18
+gradio>=5.0,<6

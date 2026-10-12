@@ -1,7 +1,59 @@
-# Détection Automatique de Chutes
+# Fall Detection
 
 This Python project leverages AI to automatically detect falls in video streams. 
 It uses **MediaPipe** to extract body joint coordinates and a **1D Convolutional Neural Network (CNN)** to analyze temporal sequences and identify falls in real-time. The system includes an integrated alert system (audio and notifications) to ensure rapid and effective intervention.
+
+## Pipeline at a glance
+
+```mermaid
+flowchart LR
+    A[PR] --> B["CI: ruff, pytest, gitleaks, CodeQL, Docker build"]
+    B --> C[Merge to main]
+    C --> D["release-please: version + changelog"]
+    C --> E["GitHub Pages: in-browser demo (ONNX + MediaPipe JS)"]
+    D --> F["Docker image + FastAPI service (self-hosted)"]
+    F --> G["Monthly drift check (cron, reference vs perturbed batches)"]
+    G -->|drift| H[Issue + report]
+    H --> I["Retrain candidate"]
+    I --> J["Evaluate vs champion (CI rule)"]
+    J -->|better| K["PR: promote models/champion.json"]
+    K --> C
+```
+
+| Stage | Status | Where |
+|---|---|---|
+| CI, security scans, release automation | in place | `.github/workflows/` |
+| Out-of-video evaluation | in place | [docs/EVALUATION.md](docs/EVALUATION.md) |
+| In-browser demo (no server, nothing uploaded) | in this release | `site/`, `scripts/export_onnx.py` |
+| API + Docker | in this release | `src/fall_detection/api.py`, `Dockerfile` |
+| Monitoring (drift), promotion rule | planned | next PRs |
+
+> Research prototype, **not a safety system**: out-of-video accuracy 82 %, recall 67 %.
+
+## Demo
+
+`site/index.html` is a static page: MediaPipe Pose Landmarker (JS) extracts the landmarks and the
+exported ONNX model (`site/model.onnx`, 127 KB) scores each 30-frame window, all in the browser.
+Hosting is free (GitHub Pages) and the video never leaves the machine.
+Locally: `python -m http.server -d site` then open http://localhost:8000.
+Regenerate the model after a promotion: `python scripts/export_onnx.py`.
+
+Hugging Face Docker and Gradio Spaces require a paid plan, which is why the public demo is static.
+The Docker image below runs the same model behind an API wherever you can host a container.
+
+## API
+
+```bash
+docker build -t fall-detection .
+docker run -p 7860:7860 fall-detection
+# demo: http://localhost:7860/   API docs: http://localhost:7860/docs
+curl -s localhost:7860/health
+curl -s -F "file=@clip.mp4" localhost:7860/predict/video
+```
+
+`POST /predict` takes `{"landmarks": [[132 floats] x n_frames]}` (n >= 30) and returns whether
+any 30-frame window crosses the threshold, plus each window score. The model runs server-side;
+no key or secret is involved.
 
 <img width="1439" height="792" alt="Capture d’écran 2025-12-23 à 10 59 01" src="https://github.com/user-attachments/assets/ed506a0a-43d9-4db4-b118-7c7eacd9737f" />
 
