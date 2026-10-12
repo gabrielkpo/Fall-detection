@@ -83,10 +83,12 @@ def confusion(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
     }
 
 
-def train_one(Xtr, ytr, Xva, yva, seed: int, max_epochs: int = 150, patience: int = 50):
+def train_one(
+    Xtr, ytr, Xva, yva, seed: int, max_epochs: int = 150, patience: int = 50, channels: int = 132
+):
     """Same recipe as scripts/train.py: Adam 1e-3, BCE, batch 32, early stopping on val loss."""
     torch.manual_seed(seed)
-    model = FallCNN1D(input_channels=132, seq_length=30)
+    model = FallCNN1D(input_channels=channels, seq_length=Xtr.shape[1])
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
     loss_fn = nn.BCELoss()
     xt = torch.tensor(Xtr).permute(0, 2, 1)
