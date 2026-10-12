@@ -10,13 +10,10 @@ RUN apt-get update \
 WORKDIR /app
 # CPU-only torch wheel (the default PyPI wheel pulls CUDA libraries, about 2 GB)
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-COPY requirements-serve.txt .
-RUN pip install --no-cache-dir -r requirements-serve.txt
-
 COPY pyproject.toml ./
 COPY src ./src
 COPY models ./models
-RUN pip install --no-cache-dir --no-deps .
+RUN pip install --no-cache-dir ".[serve]"
 
 # Run as a non-root user (Hugging Face Spaces also expects port 7860)
 RUN useradd --create-home app

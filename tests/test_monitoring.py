@@ -28,7 +28,7 @@ def test_detects_a_mean_shift():
 
 
 def test_self_test_passes_on_real_reference():
-    ref = monitoring.load_reference("monitoring/reference.json")
+    ref = monitoring.load_reference("models/monitoring_reference.json")
     assert monitoring.self_test(ref["features"], ref["scores"])["passed"]
 
 
