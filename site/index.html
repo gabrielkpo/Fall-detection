@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fall detection demo</title>
+<title>Fall detection, live</title>
 <style>
   :root { --bg:#fafafa; --fg:#1a1a1a; --muted:#666; --card:#fff; --line:#ddd; --ok:#1a7f37; --bad:#c62828; --bar:#3b6fd4; }
   @media (prefers-color-scheme: dark) {
@@ -17,51 +17,57 @@
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:16px 0; }
   .notice { border-left:4px solid var(--bad); }
   button, input[type=file]::file-selector-button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
-  #status { color:var(--muted); min-height:1.5em; }
-  #verdict { font-size:1.4rem; font-weight:600; }
-  .fall { color:var(--bad); } .nofall { color:var(--ok); }
-  #bars { display:flex; align-items:flex-end; gap:3px; height:90px; margin-top:12px; }
-  #bars div { flex:1; background:var(--bar); min-width:4px; border-radius:2px 2px 0 0; }
-  #bars div.over { background:var(--bad); }
-  table { border-collapse:collapse; width:100%; }
-  td, th { text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); }
-  video { max-width:100%; border-radius:8px; margin-top:8px; }
+  button.primary { background:var(--bar); color:#fff; border-color:var(--bar); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  #stage { position:relative; margin-top:12px; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:4/3; }
+  #stage video, #stage canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
+  #banner { position:absolute; left:0; right:0; top:0; padding:10px; text-align:center; font-weight:700; font-size:1.2rem; color:#fff; background:var(--ok); }
+  #banner.fall { background:var(--bad); }
+  #meter { height:14px; background:var(--line); border-radius:7px; overflow:hidden; margin-top:12px; }
+  #meter > div { height:100%; width:0; background:var(--bar); transition: width .1s; }
+  #meter.over > div { background:var(--bad); }
+  #spark { display:block; width:100%; height:60px; margin-top:8px; }
+  #status { color:var(--muted); min-height:1.5em; margin:8px 0 0; }
   small, .muted { color:var(--muted); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Fall detection</h1>
-  <p class="sub">MediaPipe pose + 1D CNN, running entirely in your browser. Your video is never uploaded.</p>
+  <h1>Fall detection, live</h1>
+  <p class="sub">MediaPipe pose + 1D CNN, running entirely in your browser. Nothing is uploaded or recorded.</p>
 
   <div class="card notice">
     <strong>Research prototype, not a safety system.</strong>
     Measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed).
-    Trained on a small single-person dataset. See the
-    <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">evaluation</a>.
+    See the <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">evaluation</a>.
   </div>
 
   <div class="card">
-    <label for="file"><strong>1.</strong> Choose a short video (a few seconds, one person in frame)</label><br>
-    <input id="file" type="file" accept="video/*">
+    <div class="row">
+      <button id="cam" class="primary" disabled>Start camera</button>
+      <label>or play a video file in real time:
+        <input id="file" type="file" accept="video/*" disabled></label>
+      <button id="stop" hidden>Stop</button>
+    </div>
     <p id="status">Loading models...</p>
-    <video id="video" muted playsinline preload="auto" style="display:none"></video>
-  </div>
 
-  <div class="card" id="result" hidden>
-    <div id="verdict"></div>
-    <div class="muted" id="detail"></div>
-    <div id="bars" aria-label="Score of each 30-frame window"></div>
-    <small>Each bar is one 30-frame window; red = above the 0.5 threshold.</small>
+    <div id="stage" hidden>
+      <video id="video" muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div id="banner">No fall</div>
+    </div>
+    <div id="meter" hidden><div></div></div>
+    <canvas id="spark" hidden width="720" height="60"></canvas>
+    <small id="hint" hidden>Stay fully in frame, at 2 to 4 m, in good light. The bar is the fall score of the last second; the alert needs two consecutive scores above 0.5.</small>
   </div>
 
   <div class="card">
     <strong>How it works</strong>
     <ol>
-      <li>Frames are sampled at 30 per second (at most 150).</li>
-      <li>MediaPipe Pose Landmarker finds 33 body landmarks in each frame.</li>
-      <li>A 1D CNN (31 k parameters, ONNX) scores each 30-frame window (stride 15).</li>
-      <li>The clip is flagged if any window scores above 0.5.</li>
+      <li>Each camera frame goes through MediaPipe Pose Landmarker (33 body landmarks).</li>
+      <li>The last second is resampled to 30 frames per second, so the model sees the same time scale as in training whatever your device speed.</li>
+      <li>A 1D CNN (31 k parameters, ONNX Runtime Web) scores that window every ~150 ms.</li>
+      <li>Two consecutive scores above 0.5 raise the alert.</li>
     </ol>
     <small>Source, Docker image and API:
       <a href="https://github.com/gabrielkpo/Fall-detection">github.com/gabrielkpo/Fall-detection</a></small>
@@ -72,116 +78,175 @@
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js";
 
-const WINDOW = 30, STRIDE = 15, FPS = 30, MAX_FRAMES = 150, THRESHOLD = 0.5, N_FEATURES = 132;
-const statusEl = document.getElementById("status");
-const fileEl = document.getElementById("file");
-const video = document.getElementById("video");
-const resultEl = document.getElementById("result");
+const WINDOW = 30, FPS = 30, N_FEATURES = 132, THRESHOLD = 0.5;
+const EVAL_EVERY_MS = 150, CONSECUTIVE = 2, HOLD_MS = 4000, MAX_GAP_S = 0.25, KEEP_S = 2.5;
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), video = $("video"), overlay = $("overlay"), banner = $("banner");
+const meter = $("meter"), spark = $("spark");
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
 
 // Training frames were resized to 640x480 before pose extraction; do the same here.
-const canvas = document.createElement("canvas");
-canvas.width = 640;
-canvas.height = 480;
-const ctx = canvas.getContext("2d");
+const grab = document.createElement("canvas");
+grab.width = 640; grab.height = 480;
+const gctx = grab.getContext("2d", { willReadFrequently: true });
 
-let landmarker, session;
+let landmarker, session, running = false, stream = null, fromFile = false;
+let buffer = [], scores = [], lastEval = 0, over = 0, alertUntil = 0, frames = 0, t0 = 0;
 
 async function init() {
   const fileset = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
   landmarker = await PoseLandmarker.createFromOptions(fileset, {
-    baseOptions: {
-      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
-    },
-    runningMode: "IMAGE",
-    numPoses: 1,
+    baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task" },
+    runningMode: "IMAGE", numPoses: 1,
   });
   session = await ort.InferenceSession.create("model.onnx");
-  statusEl.textContent = "Ready. Choose a video.";
+  $("cam").disabled = false; $("file").disabled = false;
+  statusEl.textContent = "Ready.";
 }
 
-function seek(t) {
-  return new Promise((resolve) => {
-    video.addEventListener("seeked", resolve, { once: true });
-    video.currentTime = t;
-  });
-}
-
-async function extractLandmarks() {
-  const n = Math.min(MAX_FRAMES, Math.floor(video.duration * FPS));
+// Resample the buffered landmarks to 30 fps ending at tEnd (nearest frame). Null if not enough data.
+function windowAt(tEnd) {
+  if (!buffer.length || buffer[0].t > tEnd - (WINDOW - 1) / FPS) return null;
   const rows = [];
-  for (let i = 0; i < n; i++) {
-    await seek(i / FPS);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const res = landmarker.detect(canvas);
-    if (res.landmarks && res.landmarks.length) {
-      const row = [];
-      for (const lm of res.landmarks[0]) row.push(lm.x, lm.y, lm.z, lm.visibility ?? 0);
-      rows.push(row);
-    }
-    if (i % 5 === 0) statusEl.textContent = `Detecting pose: frame ${i + 1} / ${n}`;
+  let j = 0;
+  for (let i = 0; i < WINDOW; i++) {
+    const t = tEnd - (WINDOW - 1 - i) / FPS;
+    while (j + 1 < buffer.length && Math.abs(buffer[j + 1].t - t) <= Math.abs(buffer[j].t - t)) j++;
+    if (Math.abs(buffer[j].t - t) > MAX_GAP_S) return null;
+    rows.push(buffer[j].row);
   }
   return rows;
 }
 
-async function scoreWindows(rows) {
-  const scores = [];
-  for (let s = 0; s + WINDOW <= rows.length; s += STRIDE) {
-    // model input layout is (batch, features, frames), as in training
-    const data = new Float32Array(N_FEATURES * WINDOW);
-    for (let f = 0; f < WINDOW; f++)
-      for (let k = 0; k < N_FEATURES; k++) data[k * WINDOW + f] = rows[s + f][k];
-    const out = await session.run({ window: new ort.Tensor("float32", data, [1, N_FEATURES, WINDOW]) });
-    scores.push(out.fall_probability.data[0]);
+async function score(rows) {
+  const data = new Float32Array(N_FEATURES * WINDOW);
+  for (let f = 0; f < WINDOW; f++) for (let k = 0; k < N_FEATURES; k++) data[k * WINDOW + f] = rows[f][k];
+  const out = await session.run({ window: new ort.Tensor("float32", data, [1, N_FEATURES, WINDOW]) });
+  return out.fall_probability.data[0];
+}
+
+function drawSkeleton(lms) {
+  const w = overlay.width = overlay.clientWidth, h = overlay.height = overlay.clientHeight;
+  const ctx = overlay.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  if (!lms) return;
+  ctx.strokeStyle = "#00e676"; ctx.lineWidth = 3;
+  for (const { start, end } of PoseLandmarker.POSE_CONNECTIONS) {
+    ctx.beginPath();
+    ctx.moveTo(lms[start].x * w, lms[start].y * h);
+    ctx.lineTo(lms[end].x * w, lms[end].y * h);
+    ctx.stroke();
   }
-  return scores;
 }
 
-function show(scores, frames) {
-  resultEl.hidden = false;
-  const max = Math.max(...scores);
-  const verdict = document.getElementById("verdict");
-  verdict.textContent = max > THRESHOLD ? "Fall detected" : "No fall detected";
-  verdict.className = max > THRESHOLD ? "fall" : "nofall";
-  document.getElementById("detail").textContent =
-    `max window score ${max.toFixed(3)} · ${scores.length} windows · ${frames} frames with a person`;
-  const bars = document.getElementById("bars");
-  bars.replaceChildren(...scores.map((s) => {
-    const d = document.createElement("div");
-    d.style.height = `${Math.max(2, s * 100)}%`;
-    d.title = s.toFixed(3);
-    if (s > THRESHOLD) d.className = "over";
-    return d;
-  }));
-  window.__result = { scores: Array.from(scores), frames, max };
+function drawSpark() {
+  const ctx = spark.getContext("2d"), w = spark.width, h = spark.height;
+  ctx.clearRect(0, 0, w, h);
+  const y = h - THRESHOLD * h;
+  ctx.strokeStyle = "#999"; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = "#6c9bff"; ctx.lineWidth = 2; ctx.beginPath();
+  scores.slice(-120).forEach((s, i, a) => {
+    const x = (i / Math.max(1, a.length - 1)) * w;
+    i ? ctx.lineTo(x, h - s * h) : ctx.moveTo(x, h - s * h);
+  });
+  ctx.stroke();
 }
 
-async function analyze(src) {
-  resultEl.hidden = true;
-  video.src = src;
-  video.style.display = "block";
-  await new Promise((r) => video.addEventListener("loadeddata", r, { once: true }));
-  statusEl.textContent = "Analyzing...";
-  const rows = await extractLandmarks();
-  window.__rows = rows; // exposed for debugging
-  if (rows.length < WINDOW) {
-    statusEl.textContent = `Only ${rows.length} frames with a detected person; need at least ${WINDOW}.`;
+async function tick() {
+  if (!running) return;
+  const now = performance.now();
+  const t = fromFile ? video.currentTime : now / 1000;
+  gctx.drawImage(video, 0, 0, grab.width, grab.height);
+  const res = landmarker.detect(grab);
+  const lms = res.landmarks && res.landmarks[0];
+  drawSkeleton(lms);
+  frames++;
+  if (lms) {
+    const row = [];
+    for (const lm of lms) row.push(lm.x, lm.y, lm.z, lm.visibility ?? 0);
+    buffer.push({ t, row });
+    while (buffer.length && buffer[0].t < t - KEEP_S) buffer.shift();
+  }
+  if (now - lastEval >= EVAL_EVERY_MS) {
+    lastEval = now;
+    const rows = lms ? windowAt(t) : null;
+    if (rows) {
+      const s = await score(rows);
+      scores.push(s);
+      over = s > THRESHOLD ? over + 1 : 0;
+      if (over >= CONSECUTIVE) alertUntil = now + HOLD_MS;
+      meter.firstElementChild.style.width = `${Math.round(s * 100)}%`;
+      meter.classList.toggle("over", s > THRESHOLD);
+      drawSpark();
+      window.__live = { scores: scores.slice(), alert: now < alertUntil };
+    } else if (!lms) {
+      statusEl.textContent = "No person detected: stay fully in frame.";
+    }
+  }
+  const alerting = now < alertUntil;
+  banner.textContent = alerting ? "FALL DETECTED" : "No fall";
+  banner.classList.toggle("fall", alerting);
+  const fps = frames / Math.max(0.001, (now - t0) / 1000);
+  if (lms) statusEl.textContent = `Live: ${fps.toFixed(1)} frames/s analysed` +
+    (fps < 8 ? " (slow device: detection may be unreliable)" : "");
+  schedule();
+}
+
+// Testing aid: ?video=clip.mp4&step=0.083 advances a paused file by a fixed time step per processed
+// frame (simulates a ~12 fps device) so the live loop can be checked without playback.
+const STEP = parseFloat(new URLSearchParams(location.search).get("step")) || 0;
+
+function schedule() {
+  if (STEP && fromFile) {
+    video.addEventListener("seeked", () => tick(), { once: true });
+    video.currentTime = (video.currentTime + STEP) % video.duration;
     return;
   }
-  show(await scoreWindows(rows), rows.length);
-  statusEl.textContent = "Done. Nothing was uploaded.";
+  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => tick());
+  else requestAnimationFrame(() => tick());
 }
 
-fileEl.addEventListener("change", () => {
-  const f = fileEl.files[0];
-  if (f) analyze(URL.createObjectURL(f)).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
+async function start(src, isFile) {
+  stop();
+  fromFile = isFile;
+  buffer = []; scores = []; over = 0; alertUntil = 0; frames = 0; lastEval = 0;
+  if (isFile) { video.srcObject = null; video.src = src; video.loop = true; }
+  else { video.removeAttribute("src"); video.srcObject = src; }
+  if (STEP && isFile) await new Promise((r) => video.addEventListener("loadeddata", r, { once: true }));
+  else await video.play();
+  ["stage", "meter", "spark", "hint", "stop"].forEach((id) => ($(id).hidden = false));
+  t0 = performance.now();
+  running = true;
+  schedule();
+}
+
+function stop() {
+  running = false;
+  if (stream) { stream.getTracks().forEach((tr) => tr.stop()); stream = null; }
+  video.pause();
+  drawSkeleton(null);
+}
+
+$("cam").addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    await start(stream, false);
+  } catch (e) {
+    statusEl.textContent = `Camera unavailable: ${e.message}`;
+  }
 });
+$("file").addEventListener("change", () => {
+  const f = $("file").files[0];
+  if (f) start(URL.createObjectURL(f), true).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
+});
+$("stop").addEventListener("click", () => { stop(); $("stop").hidden = true; statusEl.textContent = "Stopped."; });
 
 init().then(() => {
-  const sample = new URLSearchParams(location.search).get("video"); // used for testing only
-  if (sample) analyze(sample).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
+  const sample = new URLSearchParams(location.search).get("video"); // testing aid (same-origin file)
+  if (sample) start(sample, true).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
 }).catch((e) => (statusEl.textContent = `Could not load models: ${e.message}`));
 </script>
 </body>
