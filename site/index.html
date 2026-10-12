@@ -4,74 +4,163 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fall detection, live</title>
+<meta name="description" content="Real-time fall detection in the browser: MediaPipe pose + 1D CNN. Nothing is uploaded.">
 <style>
-  :root { --bg:#fafafa; --fg:#1a1a1a; --muted:#666; --card:#fff; --line:#ddd; --ok:#1a7f37; --bad:#c62828; --bar:#3b6fd4; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#121212; --fg:#eee; --muted:#9a9a9a; --card:#1c1c1c; --line:#333; --ok:#4cc16b; --bad:#ff6b6b; --bar:#6c9bff; }
+  :root {
+    --bg:#0b0f17; --bg2:#101826; --card:#121a29; --line:#223049; --fg:#e8eefc; --muted:#8fa0bf;
+    --accent:#6ea8ff; --accent2:#9b8cff; --ok:#3ddc97; --bad:#ff5d6c; --warn:#ffb454;
+    --radius:16px;
   }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:16px 0; }
-  .notice { border-left:4px solid var(--bad); }
-  button, input[type=file]::file-selector-button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
-  button.primary { background:var(--bar); color:#fff; border-color:var(--bar); }
-  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-  #stage { position:relative; margin-top:12px; background:#000; border-radius:10px; overflow:hidden; aspect-ratio:4/3; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f7fc; --bg2:#eaf0fa; --card:#ffffff; --line:#d8e1f0; --fg:#101a2e; --muted:#5b6b88;
+            --accent:#2f6df6; --accent2:#6a5cff; --ok:#12a066; --bad:#d6283a; --warn:#c77a00; }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; color:var(--fg); font:16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent),
+                     radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent),
+                     var(--bg); min-height:100vh; }
+  a { color:var(--accent); }
+  main { max-width:1080px; margin:0 auto; padding:28px 18px 56px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .logo { width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+          background:linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow:0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+  h1 { font-size:1.45rem; line-height:1.2; margin:0; letter-spacing:-.01em; }
+  .tag { color:var(--muted); font-size:.92rem; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { padding:5px 11px; border:1px solid var(--line); border-radius:999px; font-size:.82rem; color:var(--muted); background:color-mix(in srgb, var(--card) 70%, transparent); }
+  .chip b { color:var(--fg); }
+
+  .grid { display:grid; grid-template-columns: 1.55fr 1fr; gap:18px; }
+  @media (max-width: 860px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+  .card h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:0 0 12px; font-weight:600; }
+
+  #stage { position:relative; aspect-ratio:4/3; border-radius:14px; overflow:hidden; background:#05080d;
+           border:2px solid var(--line); transition:border-color .2s, box-shadow .2s; }
+  #stage.alert { border-color:var(--bad); box-shadow:0 0 0 4px color-mix(in srgb, var(--bad) 30%, transparent), 0 0 40px color-mix(in srgb, var(--bad) 45%, transparent); animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 8px color-mix(in srgb, var(--bad) 20%, transparent), 0 0 60px color-mix(in srgb, var(--bad) 55%, transparent); } }
   #stage video, #stage canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
-  #banner { position:absolute; left:0; right:0; top:0; padding:10px; text-align:center; font-weight:700; font-size:1.2rem; color:#fff; background:var(--ok); }
-  #banner.fall { background:var(--bad); }
-  #meter { height:14px; background:var(--line); border-radius:7px; overflow:hidden; margin-top:12px; }
-  #meter > div { height:100%; width:0; background:var(--bar); transition: width .1s; }
+  #placeholder { position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--muted); padding:24px;
+                 background:repeating-linear-gradient(45deg, transparent 0 14px, color-mix(in srgb, var(--line) 35%, transparent) 14px 15px); }
+  #placeholder svg { opacity:.7; margin-bottom:8px; }
+  #banner { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); padding:8px 20px; border-radius:999px;
+            font-weight:700; letter-spacing:.02em; color:#04140c; background:var(--ok); box-shadow:0 6px 20px rgba(0,0,0,.35); white-space:nowrap; }
+  #banner.fall { background:var(--bad); color:#fff; }
+
+  .controls { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  button, .filebtn { font:inherit; font-weight:600; padding:10px 18px; border-radius:12px; border:1px solid var(--line);
+                     background:var(--bg2); color:var(--fg); cursor:pointer; transition:transform .06s, filter .15s; }
+  button:hover, .filebtn:hover { filter:brightness(1.12); }
+  button:active { transform:translateY(1px); }
+  button:disabled { opacity:.5; cursor:wait; }
+  button.primary { background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; border:0; }
+  .filebtn input { display:none; }
+  #status { color:var(--muted); font-size:.9rem; margin:10px 0 0; min-height:1.4em; }
+
+  .pill { display:inline-block; padding:3px 12px; border-radius:999px; font-size:.8rem; font-weight:700; background:var(--bg2); color:var(--muted); border:1px solid var(--line); }
+  .pill.ok { color:var(--ok); border-color:color-mix(in srgb, var(--ok) 50%, var(--line)); }
+  .pill.bad { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 60%, var(--line)); }
+
+  .score { display:flex; align-items:baseline; gap:6px; margin:4px 0 8px; }
+  #scoreNum { font-size:3.6rem; font-weight:800; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  #scoreNum.over { color:var(--bad); }
+  .score span.unit { color:var(--muted); font-weight:600; }
+  #meter { position:relative; height:12px; background:var(--bg2); border:1px solid var(--line); border-radius:999px; overflow:hidden; }
+  #meter > div { height:100%; width:0; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width .12s; }
   #meter.over > div { background:var(--bad); }
-  #spark { display:block; width:100%; height:60px; margin-top:8px; }
-  #status { color:var(--muted); min-height:1.5em; margin:8px 0 0; }
-  small, .muted { color:var(--muted); }
+  #meter::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; background:var(--muted); opacity:.7; }
+  .scale { display:flex; justify-content:space-between; color:var(--muted); font-size:.75rem; margin-top:4px; }
+  #spark { display:block; width:100%; height:70px; margin-top:6px; border-radius:10px; background:var(--bg2); border:1px solid var(--line); }
+  .hint { color:var(--muted); font-size:.86rem; margin-top:12px; }
+
+  .steps { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
+  @media (max-width: 860px) { .steps { grid-template-columns:1fr 1fr; } }
+  @media (max-width: 480px) { .steps { grid-template-columns:1fr; } }
+  .step { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .step .n { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:.85rem;
+             color:#fff; background:linear-gradient(135deg, var(--accent), var(--accent2)); margin-bottom:8px; }
+  .step b { display:block; margin-bottom:2px; }
+  .step span { color:var(--muted); font-size:.9rem; }
+
+  .notice { margin-top:18px; border-left:4px solid var(--warn); background:color-mix(in srgb, var(--warn) 9%, var(--card)); }
+  .notice p { margin:0; }
+  footer { margin-top:26px; color:var(--muted); font-size:.88rem; display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Fall detection, live</h1>
-  <p class="sub">MediaPipe pose + 1D CNN, running entirely in your browser. Nothing is uploaded or recorded.</p>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v6m0 0-3 7m3-7 3 7M6 10l6-3 6 3"/></svg>
+      </div>
+      <div>
+        <h1>Fall detection, live</h1>
+        <div class="tag">Pose estimation + 1D CNN, running in your browser</div>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip">Nothing uploaded</span>
+      <span class="chip">Accuracy <b>82 %</b></span>
+      <span class="chip">Recall <b>67 %</b></span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Camera</h2>
+      <div id="stage">
+        <video id="video" muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div id="placeholder">
+          <div>
+            <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            <div>Start the camera to begin.<br><small>Stay fully in frame, 2 to 4 m away, in good light.</small></div>
+          </div>
+        </div>
+        <div id="banner">No fall</div>
+      </div>
+      <div class="controls">
+        <button id="cam" class="primary" disabled>Start camera</button>
+        <label class="filebtn">Play a video file<input id="file" type="file" accept="video/*" disabled></label>
+        <button id="stop" hidden>Stop</button>
+      </div>
+      <p id="status">Loading models...</p>
+    </section>
+
+    <section class="card">
+      <h2>Fall score <span id="pill" class="pill" style="margin-left:6px">Idle</span></h2>
+      <div class="score"><div id="scoreNum">0</div><span class="unit">/ 100</span></div>
+      <div id="meter"><div></div></div>
+      <div class="scale"><span>0</span><span>threshold 50</span><span>100</span></div>
+      <h2 style="margin-top:18px">Last 12 seconds</h2>
+      <canvas id="spark" width="720" height="140"></canvas>
+      <p class="hint">The score is the model's fall probability for the last second. The alert needs two consecutive scores above 50 and stays for 4 seconds.</p>
+    </section>
+  </div>
 
   <div class="card notice">
-    <strong>Research prototype, not a safety system.</strong>
-    Measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed).
-    See the <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">evaluation</a>.
+    <p><strong>Research prototype, not a safety system.</strong> Trained on a small single-person dataset;
+    measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed) and false alarms happen.
+    <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">See the evaluation</a>.</p>
   </div>
 
-  <div class="card">
-    <div class="row">
-      <button id="cam" class="primary" disabled>Start camera</button>
-      <label>or play a video file in real time:
-        <input id="file" type="file" accept="video/*" disabled></label>
-      <button id="stop" hidden>Stop</button>
-    </div>
-    <p id="status">Loading models...</p>
-
-    <div id="stage" hidden>
-      <video id="video" muted playsinline></video>
-      <canvas id="overlay"></canvas>
-      <div id="banner">No fall</div>
-    </div>
-    <div id="meter" hidden><div></div></div>
-    <canvas id="spark" hidden width="720" height="60"></canvas>
-    <small id="hint" hidden>Stay fully in frame, at 2 to 4 m, in good light. The bar is the fall score of the last second; the alert needs two consecutive scores above 0.5.</small>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>Pose</b><span>MediaPipe finds 33 body landmarks in every frame.</span></div>
+    <div class="step"><div class="n">2</div><b>Resample</b><span>The last second becomes 30 frames, whatever your device speed.</span></div>
+    <div class="step"><div class="n">3</div><b>Classify</b><span>A 31 k-parameter 1D CNN (ONNX) scores it every ~150 ms.</span></div>
+    <div class="step"><div class="n">4</div><b>Alert</b><span>Two consecutive scores above 50 raise the alarm.</span></div>
   </div>
 
-  <div class="card">
-    <strong>How it works</strong>
-    <ol>
-      <li>Each camera frame goes through MediaPipe Pose Landmarker (33 body landmarks).</li>
-      <li>The last second is resampled to 30 frames per second, so the model sees the same time scale as in training whatever your device speed.</li>
-      <li>A 1D CNN (31 k parameters, ONNX Runtime Web) scores that window every ~150 ms.</li>
-      <li>Two consecutive scores above 0.5 raise the alert.</li>
-    </ol>
-    <small>Source, Docker image and API:
-      <a href="https://github.com/gabrielkpo/Fall-detection">github.com/gabrielkpo/Fall-detection</a></small>
-  </div>
+  <footer>
+    <span>Runs 100 % client-side: no video leaves your device.</span>
+    <span><a href="https://github.com/gabrielkpo/Fall-detection">Source, Docker image and API on GitHub</a></span>
+  </footer>
 </main>
 
 <script type="module">
@@ -83,6 +172,7 @@ const EVAL_EVERY_MS = 150, CONSECUTIVE = 2, HOLD_MS = 4000, MAX_GAP_S = 0.25, KE
 const $ = (id) => document.getElementById(id);
 const statusEl = $("status"), video = $("video"), overlay = $("overlay"), banner = $("banner");
 const meter = $("meter"), spark = $("spark");
+const stageEl = $("stage"), pill = $("pill"), scoreNum = $("scoreNum");
 
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
 
@@ -148,7 +238,7 @@ function drawSpark() {
   ctx.strokeStyle = "#999"; ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.setLineDash([]);
   ctx.strokeStyle = "#6c9bff"; ctx.lineWidth = 2; ctx.beginPath();
-  scores.slice(-120).forEach((s, i, a) => {
+  scores.slice(-80).forEach((s, i, a) => {
     const x = (i / Math.max(1, a.length - 1)) * w;
     i ? ctx.lineTo(x, h - s * h) : ctx.moveTo(x, h - s * h);
   });
@@ -180,6 +270,8 @@ async function tick() {
       if (over >= CONSECUTIVE) alertUntil = now + HOLD_MS;
       meter.firstElementChild.style.width = `${Math.round(s * 100)}%`;
       meter.classList.toggle("over", s > THRESHOLD);
+      scoreNum.textContent = `${Math.round(s * 100)}`;
+      scoreNum.classList.toggle("over", s > THRESHOLD);
       drawSpark();
       window.__live = { scores: scores.slice(), alert: now < alertUntil };
     }
@@ -187,6 +279,9 @@ async function tick() {
   const alerting = now < alertUntil;
   banner.textContent = alerting ? "FALL DETECTED" : "No fall";
   banner.classList.toggle("fall", alerting);
+  stageEl.classList.toggle("alert", alerting);
+  pill.textContent = alerting ? "Alert" : "Live";
+  pill.className = "pill " + (alerting ? "bad" : "ok");
   const fps = frames / Math.max(0.001, (now - t0) / 1000);
   statusEl.textContent = lms
     ? `Live: ${fps.toFixed(1)} frames/s analysed` +
@@ -217,7 +312,10 @@ async function start(src, isFile) {
   else { video.removeAttribute("src"); video.srcObject = src; }
   if (STEP && isFile) await new Promise((r) => video.addEventListener("loadeddata", r, { once: true }));
   else await video.play();
-  ["stage", "meter", "spark", "hint", "stop"].forEach((id) => ($(id).hidden = false));
+  $("stop").hidden = false;
+  $("placeholder").hidden = true;
+  pill.textContent = "Live";
+  pill.className = "pill ok";
   t0 = performance.now();
   running = true;
   schedule();
@@ -228,6 +326,10 @@ function stop() {
   if (stream) { stream.getTracks().forEach((tr) => tr.stop()); stream = null; }
   video.pause();
   drawSkeleton(null);
+  $("placeholder").hidden = false;
+  pill.textContent = "Idle";
+  pill.className = "pill";
+  stageEl.classList.remove("alert");
 }
 
 $("cam").addEventListener("click", async () => {
