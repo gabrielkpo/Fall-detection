@@ -186,3 +186,17 @@ A: Yes. By expanding the dataset and adjusting the classification labels, the mo
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/gabrielkpo)
 
 Feel free to reach out for collaborations or questions regarding this project!
+
+---
+
+## Development
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+pre-commit install      # ruff, ruff-format and gitleaks run before each commit
+pytest
+```
+
+Pull requests must have a [Conventional Commits](https://www.conventionalcommits.org/) title
+(`feat: ...`, `fix: ...`, `chore: ...`). CI runs ruff, pytest, a secret scan (gitleaks) and CodeQL.

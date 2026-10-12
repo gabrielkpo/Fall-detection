@@ -6,7 +6,6 @@ from torch import nn
 
 
 class FallCNN1D(nn.Module):
-    
     def __init__(self, input_channels, seq_length):
         """
         Classe de détection de chute basée sur un CNN 1D.
@@ -23,7 +22,9 @@ class FallCNN1D(nn.Module):
         - kernel_size = 5 → la convolution regarde 5 frames adjacentes (utile pour capter les transitions de mouvement)
         - padding = 2 permet de conserver la longueur temporelle en sortie égale à celle en entrée
         """
-        self.conv1 = nn.Conv1d(in_channels=input_channels, out_channels=32, kernel_size=5, padding=2)
+        self.conv1 = nn.Conv1d(
+            in_channels=input_channels, out_channels=32, kernel_size=5, padding=2
+        )
 
         """
         Couche convolutionnelle 2 : combinaisons des patterns pour former des evènements
