@@ -7,121 +7,137 @@
 <meta name="description" content="Real-time fall detection in the browser: MediaPipe pose + 1D CNN. Nothing is uploaded.">
 <style>
   :root {
-    --bg:#0b0f17; --bg2:#101826; --card:#121a29; --line:#223049; --fg:#e8eefc; --muted:#8fa0bf;
-    --accent:#6ea8ff; --accent2:#9b8cff; --ok:#3ddc97; --bad:#ff5d6c; --warn:#ffb454;
-    --radius:16px;
-  }
-  @media (prefers-color-scheme: light) {
-    :root { --bg:#f4f7fc; --bg2:#eaf0fa; --card:#ffffff; --line:#d8e1f0; --fg:#101a2e; --muted:#5b6b88;
-            --accent:#2f6df6; --accent2:#6a5cff; --ok:#12a066; --bad:#d6283a; --warn:#c77a00; }
+    --cream:#FFFAEB; --sand:#F5EDD6; --ink:#1A1A1A; --muted:#625E55; --line:#1A1A1A;
+    --orange:#FA520F; --amber:#FFAF00; --yellow:#FFD800; --red:#E10500;
+    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
-  html { scroll-behavior:smooth; }
-  body { margin:0; color:var(--fg); font:16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         background: radial-gradient(1200px 500px at 10% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent),
-                     radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent),
-                     var(--bg); min-height:100vh; }
-  a { color:var(--accent); }
-  main { max-width:1080px; margin:0 auto; padding:28px 18px 56px; }
+  body { margin:0; background:var(--cream); color:var(--ink); font:16px/1.5 var(--sans); -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration-thickness:1px; text-underline-offset:3px; }
+  a:hover { color:var(--orange); }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+  .mono { font-family:var(--mono); text-transform:uppercase; letter-spacing:.06em; font-size:.74rem; }
 
-  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
-  .brand { display:flex; align-items:center; gap:12px; }
-  .logo { width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
-          background:linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow:0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent); }
-  h1 { font-size:1.45rem; line-height:1.2; margin:0; letter-spacing:-.01em; }
-  .tag { color:var(--muted); font-size:.92rem; }
-  .chips { display:flex; gap:8px; flex-wrap:wrap; }
-  .chip { padding:5px 11px; border:1px solid var(--line); border-radius:999px; font-size:.82rem; color:var(--muted); background:color-mix(in srgb, var(--card) 70%, transparent); }
-  .chip b { color:var(--fg); }
+  /* header */
+  header { border-bottom:1px solid var(--line); }
+  header .wrap { display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .brand { display:flex; align-items:center; gap:12px; font-weight:600; letter-spacing:-.01em; }
+  .mark { display:grid; grid-template-columns:repeat(3, 8px); gap:2px; }
+  .mark i { width:8px; height:8px; background:var(--ink); }
+  .mark i:nth-child(1), .mark i:nth-child(9) { background:var(--yellow); }
+  .mark i:nth-child(2), .mark i:nth-child(6) { background:var(--amber); }
+  .mark i:nth-child(3), .mark i:nth-child(5) { background:var(--orange); }
+  nav { display:flex; gap:24px; font-size:.92rem; }
+  nav a { text-decoration:none; }
+  nav a:hover { text-decoration:underline; }
 
-  .grid { display:grid; grid-template-columns: 1.55fr 1fr; gap:18px; }
-  @media (max-width: 860px) { .grid { grid-template-columns:1fr; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
-  .card h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:0 0 12px; font-weight:600; }
+  /* hero */
+  .hero { padding:56px 0 36px; }
+  .eyebrow { color:var(--muted); margin-bottom:18px; }
+  h1 { font-size:clamp(2.4rem, 6.4vw, 4.6rem); line-height:1.02; font-weight:500; letter-spacing:-.035em; margin:0 0 20px; max-width:14ch; }
+  .lead { font-size:1.18rem; max-width:52ch; color:var(--muted); margin:0; }
+  .blocks { height:16px; margin-top:36px;
+            background:linear-gradient(90deg, var(--yellow), var(--amber) 35%, var(--orange) 70%, var(--red));
+            -webkit-mask:repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 16px);
+                    mask:repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 16px); }
 
-  #stage { position:relative; aspect-ratio:4/3; border-radius:14px; overflow:hidden; background:#05080d;
-           border:2px solid var(--line); transition:border-color .2s, box-shadow .2s; }
-  #stage.alert { border-color:var(--bad); box-shadow:0 0 0 4px color-mix(in srgb, var(--bad) 30%, transparent), 0 0 40px color-mix(in srgb, var(--bad) 45%, transparent); animation:pulse 1s ease-in-out infinite; }
-  @keyframes pulse { 50% { box-shadow:0 0 0 8px color-mix(in srgb, var(--bad) 20%, transparent), 0 0 60px color-mix(in srgb, var(--bad) 55%, transparent); } }
+  /* app */
+  .app { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); border:1px solid var(--line); background:var(--cream); margin-top:8px; }
+  @media (max-width:880px) { .app { grid-template-columns:1fr; } }
+  .panel { padding:20px; }
+  .panel + .panel { border-left:1px solid var(--line); }
+  @media (max-width:880px) { .panel + .panel { border-left:0; border-top:1px solid var(--line); } }
+  .panel-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; color:var(--muted); }
+
+  #stage { position:relative; aspect-ratio:4/3; background:var(--ink); border:1px solid var(--line); overflow:hidden; }
+  #stage.alert { outline:4px solid var(--orange); outline-offset:-4px; }
   #stage video, #stage canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; }
-  #placeholder { position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--muted); padding:24px;
-                 background:repeating-linear-gradient(45deg, transparent 0 14px, color-mix(in srgb, var(--line) 35%, transparent) 14px 15px); }
-  #placeholder svg { opacity:.7; margin-bottom:8px; }
-  #banner { position:absolute; left:50%; bottom:14px; transform:translateX(-50%); padding:8px 20px; border-radius:999px;
-            font-weight:700; letter-spacing:.02em; color:#04140c; background:var(--ok); box-shadow:0 6px 20px rgba(0,0,0,.35); white-space:nowrap; }
-  #banner.fall { background:var(--bad); color:#fff; }
+  #placeholder { position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:#cfc8b6; padding:24px;
+                 background:
+                   linear-gradient(var(--ink), var(--ink)) padding-box,
+                   repeating-linear-gradient(0deg, transparent 0 31px, rgba(255,250,235,.06) 31px 32px),
+                   repeating-linear-gradient(90deg, transparent 0 31px, rgba(255,250,235,.06) 31px 32px); }
+  #placeholder b { display:block; color:var(--cream); font-weight:500; font-size:1.1rem; margin-bottom:4px; }
+  #banner { position:absolute; left:0; bottom:0; padding:8px 14px; background:var(--cream); color:var(--ink);
+            font-family:var(--mono); text-transform:uppercase; letter-spacing:.06em; font-size:.8rem; font-weight:600; }
+  #banner.fall { background:var(--orange); color:#fff; }
 
   .controls { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
-  button, .filebtn { font:inherit; font-weight:600; padding:10px 18px; border-radius:12px; border:1px solid var(--line);
-                     background:var(--bg2); color:var(--fg); cursor:pointer; transition:transform .06s, filter .15s; }
-  button:hover, .filebtn:hover { filter:brightness(1.12); }
-  button:active { transform:translateY(1px); }
-  button:disabled { opacity:.5; cursor:wait; }
-  button.primary { background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; border:0; }
+  button, .filebtn { font:600 .92rem var(--sans); padding:11px 18px; border:1px solid var(--ink); background:var(--cream); color:var(--ink);
+                     cursor:pointer; border-radius:0; transition:background .12s, color .12s; }
+  button:hover, .filebtn:hover { background:var(--ink); color:var(--cream); }
+  button.primary { background:var(--ink); color:var(--cream); }
+  button.primary:hover { background:var(--orange); border-color:var(--orange); }
+  button:disabled { opacity:.45; cursor:wait; }
   .filebtn input { display:none; }
-  #status { color:var(--muted); font-size:.9rem; margin:10px 0 0; min-height:1.4em; }
+  #status { color:var(--muted); font-size:.88rem; margin:12px 0 0; min-height:1.4em; }
 
-  .pill { display:inline-block; padding:3px 12px; border-radius:999px; font-size:.8rem; font-weight:700; background:var(--bg2); color:var(--muted); border:1px solid var(--line); }
-  .pill.ok { color:var(--ok); border-color:color-mix(in srgb, var(--ok) 50%, var(--line)); }
-  .pill.bad { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 60%, var(--line)); }
+  .pill { font-family:var(--mono); text-transform:uppercase; letter-spacing:.06em; font-size:.7rem; font-weight:600;
+          padding:3px 8px; border:1px solid var(--ink); background:var(--cream); color:var(--ink); }
+  .pill.ok { background:var(--ink); color:var(--cream); }
+  .pill.bad { background:var(--orange); border-color:var(--orange); color:#fff; }
 
-  .score { display:flex; align-items:baseline; gap:6px; margin:4px 0 8px; }
-  #scoreNum { font-size:3.6rem; font-weight:800; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
-  #scoreNum.over { color:var(--bad); }
-  .score span.unit { color:var(--muted); font-weight:600; }
-  #meter { position:relative; height:12px; background:var(--bg2); border:1px solid var(--line); border-radius:999px; overflow:hidden; }
-  #meter > div { height:100%; width:0; background:linear-gradient(90deg, var(--accent), var(--accent2)); transition:width .12s; }
-  #meter.over > div { background:var(--bad); }
-  #meter::after { content:""; position:absolute; left:50%; top:0; bottom:0; width:2px; background:var(--muted); opacity:.7; }
-  .scale { display:flex; justify-content:space-between; color:var(--muted); font-size:.75rem; margin-top:4px; }
-  #spark { display:block; width:100%; height:70px; margin-top:6px; border-radius:10px; background:var(--bg2); border:1px solid var(--line); }
-  .hint { color:var(--muted); font-size:.86rem; margin-top:12px; }
+  .score { display:flex; align-items:baseline; gap:8px; }
+  #scoreNum { font-size:5.2rem; line-height:.95; font-weight:500; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+  #scoreNum.over { color:var(--orange); }
+  .unit { color:var(--muted); font-family:var(--mono); font-size:.85rem; }
+  #meter { position:relative; height:14px; margin-top:14px; background:var(--sand); border:1px solid var(--ink); }
+  #meter > div { height:100%; width:0; background:linear-gradient(90deg, var(--yellow), var(--amber) 50%, var(--orange)); transition:width .12s; }
+  #meter.over > div { background:var(--orange); }
+  #meter::after { content:""; position:absolute; left:50%; top:-5px; bottom:-5px; width:2px; background:var(--ink); }
+  .scale { display:flex; justify-content:space-between; margin-top:8px; color:var(--muted); }
+  .rule { border:0; border-top:1px solid var(--line); margin:22px 0 16px; }
+  #spark { display:block; width:100%; height:84px; background:var(--sand); border:1px solid var(--ink); }
+  .hint { color:var(--muted); font-size:.88rem; margin:14px 0 0; }
 
-  .steps { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
-  @media (max-width: 860px) { .steps { grid-template-columns:1fr 1fr; } }
-  @media (max-width: 480px) { .steps { grid-template-columns:1fr; } }
-  .step { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
-  .step .n { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:.85rem;
-             color:#fff; background:linear-gradient(135deg, var(--accent), var(--accent2)); margin-bottom:8px; }
-  .step b { display:block; margin-bottom:2px; }
-  .step span { color:var(--muted); font-size:.9rem; }
+  /* sections */
+  section.block { border-top:1px solid var(--line); margin-top:56px; padding-top:20px; }
+  .steps { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:0; margin-top:18px; border-left:1px solid var(--line); }
+  @media (max-width:880px) { .steps { grid-template-columns:1fr 1fr; } }
+  @media (max-width:520px) { .steps { grid-template-columns:1fr; } }
+  .step { padding:18px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); border-top:1px solid var(--line); }
+  .step .n { color:var(--orange); font-family:var(--mono); font-weight:600; margin-bottom:28px; display:block; }
+  .step b { display:block; font-weight:600; margin-bottom:4px; }
+  .step span.t { color:var(--muted); font-size:.92rem; }
 
-  .notice { margin-top:18px; border-left:4px solid var(--warn); background:color-mix(in srgb, var(--warn) 9%, var(--card)); }
-  .notice p { margin:0; }
-  footer { margin-top:26px; color:var(--muted); font-size:.88rem; display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between; }
+  .notice { display:grid; grid-template-columns:auto 1fr; gap:0; border:1px solid var(--line); margin-top:56px; }
+  .notice .tag { background:var(--amber); padding:16px 18px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.06em; font-size:.74rem; font-weight:600; }
+  .notice p { margin:0; padding:16px 18px; }
+  @media (max-width:640px) { .notice { grid-template-columns:1fr; } }
+
+  footer { border-top:1px solid var(--line); margin-top:56px; }
+  footer .wrap { display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; padding:22px 24px 40px; color:var(--muted); font-size:.88rem; }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <div class="brand">
-      <div class="logo" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v6m0 0-3 7m3-7 3 7M6 10l6-3 6 3"/></svg>
-      </div>
-      <div>
-        <h1>Fall detection, live</h1>
-        <div class="tag">Pose estimation + 1D CNN, running in your browser</div>
-      </div>
-    </div>
-    <div class="chips">
-      <span class="chip">Nothing uploaded</span>
-      <span class="chip">Accuracy <b>82 %</b></span>
-      <span class="chip">Recall <b>67 %</b></span>
-    </div>
-  </header>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> Fall detection</div>
+    <nav>
+      <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">Evaluation</a>
+      <a href="https://github.com/gabrielkpo/Fall-detection">GitHub</a>
+    </nav>
+  </div>
+</header>
 
-  <div class="grid">
-    <section class="card">
-      <h2>Camera</h2>
+<main class="wrap">
+  <div class="hero">
+    <div class="eyebrow mono">Real time &middot; In your browser &middot; Open source</div>
+    <h1>Fall detection, live.</h1>
+    <p class="lead">Pose estimation and a 31 k-parameter neural network, running entirely on your device. Nothing is uploaded or recorded.</p>
+    <div class="blocks" aria-hidden="true"></div>
+  </div>
+
+  <div class="app">
+    <div class="panel">
+      <div class="panel-head mono"><span>Camera</span><span id="pill" class="pill">Idle</span></div>
       <div id="stage">
         <video id="video" muted playsinline></video>
         <canvas id="overlay"></canvas>
         <div id="placeholder">
-          <div>
-            <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-            <div>Start the camera to begin.<br><small>Stay fully in frame, 2 to 4 m away, in good light.</small></div>
-          </div>
+          <div><b>Start the camera to begin</b>Stay fully in frame, 2 to 4 m away, in good light.</div>
         </div>
         <div id="banner">No fall</div>
       </div>
@@ -131,37 +147,42 @@
         <button id="stop" hidden>Stop</button>
       </div>
       <p id="status">Loading models...</p>
-    </section>
+    </div>
 
-    <section class="card">
-      <h2>Fall score <span id="pill" class="pill" style="margin-left:6px">Idle</span></h2>
+    <div class="panel">
+      <div class="panel-head mono"><span>Fall score</span><span>Last second</span></div>
       <div class="score"><div id="scoreNum">0</div><span class="unit">/ 100</span></div>
       <div id="meter"><div></div></div>
-      <div class="scale"><span>0</span><span>threshold 50</span><span>100</span></div>
-      <h2 style="margin-top:18px">Last 12 seconds</h2>
-      <canvas id="spark" width="720" height="140"></canvas>
-      <p class="hint">The score is the model's fall probability for the last second. The alert needs two consecutive scores above 50 and stays for 4 seconds.</p>
-    </section>
+      <div class="scale mono"><span>0</span><span>Threshold 50</span><span>100</span></div>
+      <hr class="rule">
+      <div class="panel-head mono" style="margin-bottom:10px"><span>History</span><span>12 s</span></div>
+      <canvas id="spark" width="720" height="168"></canvas>
+      <p class="hint">The score is the model's fall probability for the last second. The alert needs two consecutive scores above 50 and stays on for 4 seconds.</p>
+    </div>
   </div>
 
-  <div class="card notice">
-    <p><strong>Research prototype, not a safety system.</strong> Trained on a small single-person dataset;
-    measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed) and false alarms happen.
-    <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">See the evaluation</a>.</p>
+  <div class="notice">
+    <div class="tag">Research prototype</div>
+    <p>Not a safety system. Trained on a small single-person dataset; measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed) and false alarms happen. <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">Read the evaluation</a>.</p>
   </div>
 
-  <div class="steps">
-    <div class="step"><div class="n">1</div><b>Pose</b><span>MediaPipe finds 33 body landmarks in every frame.</span></div>
-    <div class="step"><div class="n">2</div><b>Resample</b><span>The last second becomes 30 frames, whatever your device speed.</span></div>
-    <div class="step"><div class="n">3</div><b>Classify</b><span>A 31 k-parameter 1D CNN (ONNX) scores it every ~150 ms.</span></div>
-    <div class="step"><div class="n">4</div><b>Alert</b><span>Two consecutive scores above 50 raise the alarm.</span></div>
-  </div>
-
-  <footer>
-    <span>Runs 100 % client-side: no video leaves your device.</span>
-    <span><a href="https://github.com/gabrielkpo/Fall-detection">Source, Docker image and API on GitHub</a></span>
-  </footer>
+  <section class="block">
+    <div class="mono" style="color:var(--muted)">How it works</div>
+    <div class="steps">
+      <div class="step"><span class="n">01</span><b>Pose</b><span class="t">MediaPipe finds 33 body landmarks in every frame.</span></div>
+      <div class="step"><span class="n">02</span><b>Resample</b><span class="t">The last second becomes 30 frames, whatever your device speed.</span></div>
+      <div class="step"><span class="n">03</span><b>Classify</b><span class="t">A 1D CNN, exported to ONNX, scores it every ~150 ms.</span></div>
+      <div class="step"><span class="n">04</span><b>Alert</b><span class="t">Two consecutive scores above 50 raise the alarm.</span></div>
+    </div>
+  </section>
 </main>
+
+<footer>
+  <div class="wrap">
+    <span>Runs 100 % client-side: no video leaves your device.</span>
+    <span><a href="https://github.com/gabrielkpo/Fall-detection">Source, Docker image and API on GitHub</a> &middot; MIT licence</span>
+  </div>
+</footer>
 
 <script type="module">
 import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
@@ -222,7 +243,7 @@ function drawSkeleton(lms) {
   const ctx = overlay.getContext("2d");
   ctx.clearRect(0, 0, w, h);
   if (!lms) return;
-  ctx.strokeStyle = "#00e676"; ctx.lineWidth = 3;
+  ctx.strokeStyle = "#FFAF00"; ctx.lineWidth = 3;
   for (const { start, end } of PoseLandmarker.POSE_CONNECTIONS) {
     ctx.beginPath();
     ctx.moveTo(lms[start].x * w, lms[start].y * h);
@@ -235,9 +256,9 @@ function drawSpark() {
   const ctx = spark.getContext("2d"), w = spark.width, h = spark.height;
   ctx.clearRect(0, 0, w, h);
   const y = h - THRESHOLD * h;
-  ctx.strokeStyle = "#999"; ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = "#FA520F"; ctx.setLineDash([6, 5]);
   ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.setLineDash([]);
-  ctx.strokeStyle = "#6c9bff"; ctx.lineWidth = 2; ctx.beginPath();
+  ctx.strokeStyle = "#1A1A1A"; ctx.lineWidth = 2.5; ctx.beginPath();
   scores.slice(-80).forEach((s, i, a) => {
     const x = (i / Math.max(1, a.length - 1)) * w;
     i ? ctx.lineTo(x, h - s * h) : ctx.moveTo(x, h - s * h);
@@ -277,7 +298,7 @@ async function tick() {
     }
   }
   const alerting = now < alertUntil;
-  banner.textContent = alerting ? "FALL DETECTED" : "No fall";
+  banner.textContent = alerting ? "Fall detected" : "No fall";
   banner.classList.toggle("fall", alerting);
   stageEl.classList.toggle("alert", alerting);
   pill.textContent = alerting ? "Alert" : "Live";
