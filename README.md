@@ -186,3 +186,10 @@ A: Yes. By expanding the dataset and adjusting the classification labels, the mo
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/gabrielkpo)
 
 Feel free to reach out for collaborations or questions regarding this project!
+
+## Releases
+
+Versions follow [Semantic Versioning](https://semver.org/) and are automated with
+[release-please](https://github.com/googleapis/release-please): merged `feat:` / `fix:` commits
+feed a "release PR" that updates `CHANGELOG.md` and the version; merging it creates the tag and
+the GitHub Release.
