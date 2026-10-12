@@ -6,6 +6,7 @@ __pycache__/
 models/*
 !models/champion.pth
 !models/champion.json
+!models/frozen_split.json
 data/raw/
 data/processed/
 data/events/
@@ -15,3 +16,5 @@ data/videos/
 *.MOV
 *.wav
 .DS_Store
+reports/
+monitoring/current.jsonl
