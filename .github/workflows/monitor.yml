@@ -21,7 +21,7 @@ jobs:
         run: python scripts/monitor.py --out reports
       - name: Publish report in the job summary
         run: cat reports/drift.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: drift-report
           path: reports/
