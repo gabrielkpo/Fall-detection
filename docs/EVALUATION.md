@@ -96,3 +96,25 @@ paired bootstrap interval (resampling videos) of the F1 gain is above zero.
 
 Raw data is not in the repository (its origin and licence are not documented). The promotion
 workflow therefore needs a private `DATA_URL` secret and is skipped until it exists.
+
+## Feature representations (negative result)
+
+Tried to make the input independent of camera distance and position (the demo showed false alarms
+standing up and missed falls on a real webcam). Same group-wise 5-fold CV, 3 seeds, 294 windows:
+
+| Input | Accuracy | Recall | F1 | Delta F1 vs raw (95 % CI) |
+|---|---|---|---|---|
+| Raw landmarks, 132 channels (current) | 0.830 | 0.673 | 0.729 | - |
+| Centred on the hips, scaled by torso length, x/y only (66) | 0.830 | 0.670 | 0.728 | -0.06 (-0.15 to +0.02) |
+| Derived body features: torso angle, relative heights, bounding-box aspect, velocities (11) | 0.763 | 0.473 | 0.575 | -0.17 (-0.29 to -0.05) |
+| Derived without absolute hip height (10) | 0.779 | 0.493 | 0.602 | -0.14 (-0.25 to -0.03) |
+
+Nothing beats the raw input; the hand-made features are clearly worse. Cross-validation on a
+single-person, single-camera dataset cannot reward camera invariance, so this result does **not**
+say invariance is useless on a new camera: it says the current data cannot show it. The next
+measurable step is more varied data (other angles, distances, rooms, people, and hard negatives
+such as sitting down or picking something up), recorded with `scripts/ingest_clips.py`, which also
+keeps the video id of each window so splits are exact.
+
+Code: `src/fall_detection/features.py`, `scripts/feature_experiment.py`
+(`docs/feature_experiment.json` has the raw numbers). The features are not used in production.
