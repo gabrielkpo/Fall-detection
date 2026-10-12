@@ -13,7 +13,19 @@ jobs:
           python-version: "3.11"
       - name: Install
         run: |
-          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch numpy scikit-learn pytest ruff
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu torch numpy scikit-learn fastapi httpx python-multipart pytest ruff
           pip install -e . --no-deps
       - run: ruff check .
       - run: pytest
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (no push)
+        run: docker build -t fall-detection:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name fd -p 7860:7860 fall-detection:ci
+          for i in $(seq 1 30); do curl -sf localhost:7860/health && break; sleep 2; done
+          curl -sf localhost:7860/health
+          curl -sf localhost:7860/model

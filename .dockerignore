@@ -1,0 +1,10 @@
+.git
+.github
+data
+docs
+tests
+scripts
+**/__pycache__
+*.npy
+*.mp4
+*.MOV

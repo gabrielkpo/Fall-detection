@@ -1,7 +1,48 @@
-# Détection Automatique de Chutes
+# Fall Detection
 
 This Python project leverages AI to automatically detect falls in video streams. 
 It uses **MediaPipe** to extract body joint coordinates and a **1D Convolutional Neural Network (CNN)** to analyze temporal sequences and identify falls in real-time. The system includes an integrated alert system (audio and notifications) to ensure rapid and effective intervention.
+
+## Pipeline at a glance
+
+```mermaid
+flowchart LR
+    A[PR] --> B["CI: ruff, pytest, gitleaks, CodeQL, Docker build"]
+    B --> C[Merge to main]
+    C --> D["release-please: version + changelog"]
+    D --> E[Docker image]
+    E --> F["Hugging Face Space: demo + API"]
+    F --> G["Anonymous feature stats (no video)"]
+    G --> H["Monthly drift check (cron)"]
+    H -->|drift| I[Issue + report]
+    I --> J["Retrain candidate"]
+    J --> K["Evaluate vs champion (CI rule)"]
+    K -->|better| L["PR: promote models/champion.json"]
+    L --> C
+```
+
+| Stage | Status | Where |
+|---|---|---|
+| CI, security scans, release automation | in place | `.github/workflows/` |
+| Out-of-video evaluation | in place | [docs/EVALUATION.md](docs/EVALUATION.md) |
+| API + Docker + demo | in this release | `src/fall_detection/api.py`, `Dockerfile` |
+| Monitoring (drift), promotion rule | planned | next PRs |
+
+> Research prototype, **not a safety system**: out-of-video accuracy 82 %, recall 67 %.
+
+## API
+
+```bash
+docker build -t fall-detection .
+docker run -p 7860:7860 fall-detection
+# demo: http://localhost:7860/   API docs: http://localhost:7860/docs
+curl -s localhost:7860/health
+curl -s -F "file=@clip.mp4" localhost:7860/predict/video
+```
+
+`POST /predict` takes `{"landmarks": [[132 floats] x n_frames]}` (n >= 30) and returns whether
+any 30-frame window crosses the threshold, plus each window score. The model runs server-side;
+no key or secret is involved.
 
 <img width="1439" height="792" alt="Capture d’écran 2025-12-23 à 10 59 01" src="https://github.com/user-attachments/assets/ed506a0a-43d9-4db4-b118-7c7eacd9737f" />
 

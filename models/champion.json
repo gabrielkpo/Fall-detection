@@ -1,0 +1,16 @@
+{
+  "version": "0.1.0",
+  "weights_file": "models/champion.pth",
+  "weights_sha256": "bbfef334c9260b8f67e821cb5fa6e51639c58a9f4fd4f0600fe94809aa05e445",
+  "architecture": "FallCNN1D(input_channels=132, seq_length=30), 31489 parameters",
+  "trained": "2025-06-02, scripts/train.py recipe, random 80/10/10 split",
+  "evaluation": {
+    "protocol": "5-fold group-wise CV of the training recipe, 294 windows, out-of-video (docs/EVALUATION.md)",
+    "accuracy": 0.823,
+    "precision": 0.779,
+    "recall": 0.67,
+    "f1": 0.72,
+    "caveat": "These weights were trained once on a random split; the CV scores the recipe, not these exact weights. No frozen test set exists yet."
+  },
+  "threshold": 0.5
+}

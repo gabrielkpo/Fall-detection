@@ -43,8 +43,9 @@ Across these variants: accuracy 79 - 84 %, recall 64 - 73 %.
 ## Latency
 
 Model only, one window, CPU, batch of 1: median 0.12 ms, p95 0.14 ms (31,489 parameters).
-Pose extraction (MediaPipe) is **not** included and is the real bottleneck; it has not been
-measured yet.
+Pose extraction (MediaPipe, one frame at a time, CPU) is **not** included and is the real
+bottleneck: about 0.2 s per frame measured in the Docker image on an Apple Silicon laptop
+(240 frames in about 50 s). The demo therefore processes at most 150 frames per video.
 
 ## What this does not say
 
@@ -56,3 +57,6 @@ measured yet.
 - One in three falls is missed (recall 67 %). This is **not** suitable for safety-critical use.
 - Pseudo-video groups can be wrong (two videos merged, one video split). The sensitivity table
   shows the conclusion holds for the thresholds tried, not that it is exact.
+- The model has no "not a person" class: random landmark values are scored as a fall with
+  probability 1.0 (checked on the served API). Input must come from a pose detector.
+- The training frame rate is not recorded; the demo feeds consecutive frames of the uploaded video.
