@@ -1,7 +1,7 @@
 """Input and score drift checks, with a self-test so the monitor itself is monitored.
 
 Features are cheap, interpretable per-window summaries of the pose landmarks. Drift is measured
-against a committed reference (`monitoring/reference.json`, derived statistics only, no video).
+against a committed reference (`models/monitoring_reference.json`, derived statistics only, no video).
 """
 
 from __future__ import annotations

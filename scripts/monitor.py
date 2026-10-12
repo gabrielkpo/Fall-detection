@@ -15,8 +15,8 @@ import numpy as np
 
 from fall_detection import inference, monitoring
 
-REFERENCE = "monitoring/reference.json"
-CURRENT_LOG = "monitoring/current.jsonl"
+REFERENCE = "models/monitoring_reference.json"
+CURRENT_LOG = "models/monitoring_current.jsonl"
 
 
 def build_reference(data_dir: str, out: str) -> None:
@@ -47,7 +47,7 @@ def to_markdown(report: dict) -> str:
     cur = report.get("current")
     if cur is None:
         lines += [
-            "No production data this month (`monitoring/current.jsonl` absent). The browser demo "
+            "No production data this month (`models/monitoring_current.jsonl` absent). The browser demo "
             "sends nothing; only a self-hosted API with `FALL_LOG_PATH` produces logs.",
         ]
     else:

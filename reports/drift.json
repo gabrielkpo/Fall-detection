@@ -1,9 +1,0 @@
-{
-  "model_version": "0.2.0",
-  "self_test": {
-    "no_false_alarm_on_resample": true,
-    "detects_injected_shift": true,
-    "passed": true
-  },
-  "current": null
-}
