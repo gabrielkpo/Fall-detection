@@ -3,7 +3,9 @@ __pycache__/
 *.pyo
 *.pyd
 *.npy
-models/
+models/*
+!models/champion.pth
+!models/champion.json
 data/raw/
 data/processed/
 data/events/

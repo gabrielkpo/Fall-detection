@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fall detection demo</title>
+<style>
+  :root { --bg:#fafafa; --fg:#1a1a1a; --muted:#666; --card:#fff; --line:#ddd; --ok:#1a7f37; --bad:#c62828; --bar:#3b6fd4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121212; --fg:#eee; --muted:#9a9a9a; --card:#1c1c1c; --line:#333; --ok:#4cc16b; --bad:#ff6b6b; --bar:#6c9bff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin:16px 0; }
+  .notice { border-left:4px solid var(--bad); }
+  button, input[type=file]::file-selector-button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  #status { color:var(--muted); min-height:1.5em; }
+  #verdict { font-size:1.4rem; font-weight:600; }
+  .fall { color:var(--bad); } .nofall { color:var(--ok); }
+  #bars { display:flex; align-items:flex-end; gap:3px; height:90px; margin-top:12px; }
+  #bars div { flex:1; background:var(--bar); min-width:4px; border-radius:2px 2px 0 0; }
+  #bars div.over { background:var(--bad); }
+  table { border-collapse:collapse; width:100%; }
+  td, th { text-align:left; padding:4px 8px; border-bottom:1px solid var(--line); }
+  video { max-width:100%; border-radius:8px; margin-top:8px; }
+  small, .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fall detection</h1>
+  <p class="sub">MediaPipe pose + 1D CNN, running entirely in your browser. Your video is never uploaded.</p>
+
+  <div class="card notice">
+    <strong>Research prototype, not a safety system.</strong>
+    Measured out-of-video: accuracy 82 %, recall 67 % (about 1 fall in 3 is missed).
+    Trained on a small single-person dataset. See the
+    <a href="https://github.com/gabrielkpo/Fall-detection/blob/main/docs/EVALUATION.md">evaluation</a>.
+  </div>
+
+  <div class="card">
+    <label for="file"><strong>1.</strong> Choose a short video (a few seconds, one person in frame)</label><br>
+    <input id="file" type="file" accept="video/*">
+    <p id="status">Loading models...</p>
+    <video id="video" muted playsinline preload="auto" style="display:none"></video>
+  </div>
+
+  <div class="card" id="result" hidden>
+    <div id="verdict"></div>
+    <div class="muted" id="detail"></div>
+    <div id="bars" aria-label="Score of each 30-frame window"></div>
+    <small>Each bar is one 30-frame window; red = above the 0.5 threshold.</small>
+  </div>
+
+  <div class="card">
+    <strong>How it works</strong>
+    <ol>
+      <li>Frames are sampled at 30 per second (at most 150).</li>
+      <li>MediaPipe Pose Landmarker finds 33 body landmarks in each frame.</li>
+      <li>A 1D CNN (31 k parameters, ONNX) scores each 30-frame window (stride 15).</li>
+      <li>The clip is flagged if any window scores above 0.5.</li>
+    </ol>
+    <small>Source, Docker image and API:
+      <a href="https://github.com/gabrielkpo/Fall-detection">github.com/gabrielkpo/Fall-detection</a></small>
+  </div>
+</main>
+
+<script type="module">
+import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs";
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/esm/ort.wasm.min.js";
+
+const WINDOW = 30, STRIDE = 15, FPS = 30, MAX_FRAMES = 150, THRESHOLD = 0.5, N_FEATURES = 132;
+const statusEl = document.getElementById("status");
+const fileEl = document.getElementById("file");
+const video = document.getElementById("video");
+const resultEl = document.getElementById("result");
+
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
+
+// Training frames were resized to 640x480 before pose extraction; do the same here.
+const canvas = document.createElement("canvas");
+canvas.width = 640;
+canvas.height = 480;
+const ctx = canvas.getContext("2d");
+
+let landmarker, session;
+
+async function init() {
+  const fileset = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+  landmarker = await PoseLandmarker.createFromOptions(fileset, {
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+    },
+    runningMode: "IMAGE",
+    numPoses: 1,
+  });
+  session = await ort.InferenceSession.create("model.onnx");
+  statusEl.textContent = "Ready. Choose a video.";
+}
+
+function seek(t) {
+  return new Promise((resolve) => {
+    video.addEventListener("seeked", resolve, { once: true });
+    video.currentTime = t;
+  });
+}
+
+async function extractLandmarks() {
+  const n = Math.min(MAX_FRAMES, Math.floor(video.duration * FPS));
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    await seek(i / FPS);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const res = landmarker.detect(canvas);
+    if (res.landmarks && res.landmarks.length) {
+      const row = [];
+      for (const lm of res.landmarks[0]) row.push(lm.x, lm.y, lm.z, lm.visibility ?? 0);
+      rows.push(row);
+    }
+    if (i % 5 === 0) statusEl.textContent = `Detecting pose: frame ${i + 1} / ${n}`;
+  }
+  return rows;
+}
+
+async function scoreWindows(rows) {
+  const scores = [];
+  for (let s = 0; s + WINDOW <= rows.length; s += STRIDE) {
+    // model input layout is (batch, features, frames), as in training
+    const data = new Float32Array(N_FEATURES * WINDOW);
+    for (let f = 0; f < WINDOW; f++)
+      for (let k = 0; k < N_FEATURES; k++) data[k * WINDOW + f] = rows[s + f][k];
+    const out = await session.run({ window: new ort.Tensor("float32", data, [1, N_FEATURES, WINDOW]) });
+    scores.push(out.fall_probability.data[0]);
+  }
+  return scores;
+}
+
+function show(scores, frames) {
+  resultEl.hidden = false;
+  const max = Math.max(...scores);
+  const verdict = document.getElementById("verdict");
+  verdict.textContent = max > THRESHOLD ? "Fall detected" : "No fall detected";
+  verdict.className = max > THRESHOLD ? "fall" : "nofall";
+  document.getElementById("detail").textContent =
+    `max window score ${max.toFixed(3)} · ${scores.length} windows · ${frames} frames with a person`;
+  const bars = document.getElementById("bars");
+  bars.replaceChildren(...scores.map((s) => {
+    const d = document.createElement("div");
+    d.style.height = `${Math.max(2, s * 100)}%`;
+    d.title = s.toFixed(3);
+    if (s > THRESHOLD) d.className = "over";
+    return d;
+  }));
+  window.__result = { scores: Array.from(scores), frames, max };
+}
+
+async function analyze(src) {
+  resultEl.hidden = true;
+  video.src = src;
+  video.style.display = "block";
+  await new Promise((r) => video.addEventListener("loadeddata", r, { once: true }));
+  statusEl.textContent = "Analyzing...";
+  const rows = await extractLandmarks();
+  window.__rows = rows; // exposed for debugging
+  if (rows.length < WINDOW) {
+    statusEl.textContent = `Only ${rows.length} frames with a detected person; need at least ${WINDOW}.`;
+    return;
+  }
+  show(await scoreWindows(rows), rows.length);
+  statusEl.textContent = "Done. Nothing was uploaded.";
+}
+
+fileEl.addEventListener("change", () => {
+  const f = fileEl.files[0];
+  if (f) analyze(URL.createObjectURL(f)).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
+});
+
+init().then(() => {
+  const sample = new URLSearchParams(location.search).get("video"); // used for testing only
+  if (sample) analyze(sample).catch((e) => (statusEl.textContent = `Error: ${e.message}`));
+}).catch((e) => (statusEl.textContent = `Could not load models: ${e.message}`));
+</script>
+</body>
+</html>
