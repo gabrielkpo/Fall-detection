@@ -17,7 +17,7 @@ serve = [
   "python-multipart>=0.0.9",
   "opencv-python-headless>=4.8,<5",
   "mediapipe==0.10.18",
-  "gradio>=5.0,<6",
+  "gradio>=5.0,<7",
   "numpy<2.0",
 ]
 export = ["onnx", "onnxruntime"]
