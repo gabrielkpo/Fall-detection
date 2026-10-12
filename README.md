@@ -185,6 +185,20 @@ A: Yes. By expanding the dataset and adjusting the classification labels, the mo
 
 Feel free to reach out for collaborations or questions regarding this project!
 
+---
+
+## Development
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+pre-commit install      # ruff, ruff-format and gitleaks run before each commit
+pytest
+```
+
+Pull requests must have a [Conventional Commits](https://www.conventionalcommits.org/) title
+(`feat: ...`, `fix: ...`, `chore: ...`). CI runs ruff, pytest, a secret scan (gitleaks) and CodeQL.
+
 ## Releases
 
 Versions follow [Semantic Versioning](https://semver.org/) and are automated with
