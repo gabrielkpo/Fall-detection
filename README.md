@@ -33,9 +33,12 @@ flowchart LR
 
 ## Demo
 
-`site/index.html` is a static page: MediaPipe Pose Landmarker (JS) extracts the landmarks and the
-exported ONNX model (`site/model.onnx`, 127 KB) scores each 30-frame window, all in the browser.
-Hosting is free (GitHub Pages) and the video never leaves the machine.
+`site/index.html` is a static page that works **live**: it opens the camera (or plays a video file
+in real time), draws the skeleton, scores the last second about every 150 ms and raises an alert
+after two consecutive scores above 0.5. MediaPipe Pose Landmarker (JS) extracts the landmarks and
+the exported ONNX model (`site/model.onnx`, 127 KB) scores each window, all in the browser. The
+last second is resampled to 30 fps, so the time scale matches training whatever the device speed.
+Hosting is free (GitHub Pages) and nothing leaves the machine.
 Locally: `python -m http.server -d site` then open http://localhost:8000.
 Regenerate the model after a promotion: `python scripts/export_onnx.py`.
 
