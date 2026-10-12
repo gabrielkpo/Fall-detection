@@ -11,7 +11,7 @@ import torch.nn as nn
 import numpy as np
 from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset, DataLoader
-from cnn_fall import FallCNN1D
+from fall_detection.model import FallCNN1D
 
 
 # === 1. Chargement des données ===
@@ -21,8 +21,8 @@ On charge les fichiers numpy contenant les données brutes sous forme de matrice
 - X contient les séquences temporelles de données (30 frames × 132 caractéristiques par frame).
 - y contient les labels binaires (0 pour ADL, 1 pour chute).
 """
-X = np.load("X.npy")  
-y = np.load("y.npy")
+X = np.load("data/processed/X.npy")  
+y = np.load("data/processed/y.npy")
 
 """
 Les données numpy sont par défaut en float64 (double précision) qui est coûteux en mémoire et inutile ici.
@@ -181,7 +181,7 @@ for epoch in range(num_epochs):
     # === Early stopping ===
     if avg_val_loss < best_val_loss:
         best_val_loss = avg_val_loss
-        torch.save(model.state_dict(), "best_model.pth")  # Sauvegarde du meilleur modèle
+        torch.save(model.state_dict(), "models/best_model.pth")  # Sauvegarde du meilleur modèle
         counter = 0
     else:
         counter += 1
