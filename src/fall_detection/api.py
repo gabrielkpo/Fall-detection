@@ -10,7 +10,7 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from fall_detection import inference
+from fall_detection import inference, monitoring
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 THRESHOLD = float(os.environ.get("FALL_THRESHOLD", "0.5"))
@@ -49,6 +49,10 @@ def _respond(frames: np.ndarray) -> PredictionResponse:
         pred = inference.predict(app.state.model, frames, threshold=THRESHOLD)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    log_path = os.environ.get("FALL_LOG_PATH")  # opt-in, anonymous feature summaries only
+    if log_path:
+        windows = inference.sliding_windows(frames)
+        monitoring.log_windows(log_path, windows, np.asarray(pred.window_scores))
     return PredictionResponse(
         fall=pred.fall,
         score=pred.score,

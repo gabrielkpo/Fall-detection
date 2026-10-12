@@ -75,3 +75,24 @@ ONNX vs PyTorch: max absolute difference 0 on 64 random windows. The browser pat
 frames to 640x480 first (as the training extraction did): without it, the z coordinates differ by
 a factor of about 2 and every window scores at the floor value. Differences up to about 0.03 remain
 between the two MediaPipe implementations; this has been checked on one clip only.
+
+## Frozen test split and promotion
+
+`models/frozen_split.json` holds one fold of videos (18 pseudo-videos, 61 windows, 20 falls),
+never used for training or model selection, tied to the dataset by a SHA-256 fingerprint.
+The first champion (0.1.0) had been trained on a random split that contained these windows, so it
+was retrained without them (0.2.0). On the frozen test, 61 windows only:
+
+| | Value | 95% CI |
+|---|---|---|
+| Accuracy | 85.2 % | 74.3 - 92.0 % |
+| Recall | 80.0 % | 58.4 - 91.9 % |
+| Precision | 76.2 % | |
+| F1 | 0.78 | |
+
+The intervals are wide and overlap the cross-validation figures above: do not read the higher
+point estimates as an improvement. A candidate is promoted only if the lower bound of the 95 %
+paired bootstrap interval (resampling videos) of the F1 gain is above zero.
+
+Raw data is not in the repository (its origin and licence are not documented). The promotion
+workflow therefore needs a private `DATA_URL` secret and is skipped until it exists.

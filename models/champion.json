@@ -1,16 +1,19 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "weights_file": "models/champion.pth",
-  "weights_sha256": "bbfef334c9260b8f67e821cb5fa6e51639c58a9f4fd4f0600fe94809aa05e445",
+  "weights_sha256": "2007ef12160da152bec0bf92ce28ac50e318a6936ba6be104e95716d3756c751",
   "architecture": "FallCNN1D(input_channels=132, seq_length=30), 31489 parameters",
-  "trained": "2025-06-02, scripts/train.py recipe, random 80/10/10 split",
+  "trained": "2026-10-12, fall_detection.promotion, windows of the frozen test split excluded",
   "evaluation": {
-    "protocol": "5-fold group-wise CV of the training recipe, 294 windows, out-of-video (docs/EVALUATION.md)",
-    "accuracy": 0.823,
-    "precision": 0.779,
-    "recall": 0.67,
-    "f1": 0.72,
-    "caveat": "These weights were trained once on a random split; the CV scores the recipe, not these exact weights. No frozen test set exists yet."
+    "protocol": "frozen group-wise test split (models/frozen_split.json)",
+    "n_test_windows": 61,
+    "accuracy": 0.852,
+    "precision": 0.762,
+    "recall": 0.8,
+    "f1": 0.78,
+    "caveat": "Baseline retrained without the frozen test windows; small test set, wide intervals."
   },
-  "threshold": 0.5
+  "threshold": 0.5,
+  "dataset_sha256": "5f468253eccccc9c48c5d2d3c756d16d184034485e388c801b9301b1cc956f60",
+  "git_sha": "local"
 }

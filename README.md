@@ -12,7 +12,7 @@ flowchart LR
     C --> D["release-please: version + changelog"]
     C --> E["GitHub Pages: in-browser demo (ONNX + MediaPipe JS)"]
     D --> F["Docker image + FastAPI service (self-hosted)"]
-    F --> G["Monthly drift check (cron, reference vs perturbed batches)"]
+    F --> G["Monthly drift check (cron): KS + PSI vs reference, self-test"]
     G -->|drift| H[Issue + report]
     H --> I["Retrain candidate"]
     I --> J["Evaluate vs champion (CI rule)"]
@@ -26,7 +26,8 @@ flowchart LR
 | Out-of-video evaluation | in place | [docs/EVALUATION.md](docs/EVALUATION.md) |
 | In-browser demo (no server, nothing uploaded) | in this release | `site/`, `scripts/export_onnx.py` |
 | API + Docker | in this release | `src/fall_detection/api.py`, `Dockerfile` |
-| Monitoring (drift), promotion rule | planned | next PRs |
+| Monthly drift check + self-test | in this release | `scripts/monitor.py`, `.github/workflows/monitor.yml` |
+| Frozen test split + promotion rule | in this release | `src/fall_detection/promotion.py`, `.github/workflows/promote.yml` |
 
 > Research prototype, **not a safety system**: out-of-video accuracy 82 %, recall 67 %.
 
