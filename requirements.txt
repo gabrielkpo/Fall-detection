@@ -5,5 +5,5 @@ opencv-python>=4.8
 mediapipe>=0.10
 pygame>=2.5
 tqdm>=4.66
-pytest>=8.0
+pytest>=9.1.1
 ruff>=0.5
