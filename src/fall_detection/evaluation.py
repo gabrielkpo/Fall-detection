@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from fall_detection.model import FallCNN1D
+from fall_detection.architectures import DEFAULT_ARCH, build_model
 
 N_LANDMARKS = 33
 
@@ -84,11 +84,19 @@ def confusion(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
 
 
 def train_one(
-    Xtr, ytr, Xva, yva, seed: int, max_epochs: int = 150, patience: int = 50, channels: int = 132
+    Xtr,
+    ytr,
+    Xva,
+    yva,
+    seed: int,
+    max_epochs: int = 150,
+    patience: int = 50,
+    channels: int = 132,
+    arch: str = DEFAULT_ARCH,
 ):
     """Same recipe as scripts/train.py: Adam 1e-3, BCE, batch 32, early stopping on val loss."""
     torch.manual_seed(seed)
-    model = FallCNN1D(input_channels=channels, seq_length=Xtr.shape[1])
+    model = build_model(arch, input_channels=channels, seq_length=Xtr.shape[1])
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
     loss_fn = nn.BCELoss()
     xt = torch.tensor(Xtr).permute(0, 2, 1)

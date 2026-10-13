@@ -37,8 +37,9 @@ flowchart LR
     F --> G["Monthly drift check: KS + PSI vs reference, self-test"]
     G -->|drift| H[Issue + report]
     H --> I["Retrain candidate"]
-    I --> J["Evaluate vs champion on the frozen test split"]
-    J -->|CI of the F1 gain above 0| K["PR: promote models/champion.json"]
+    I --> T["Architecture tournament: CNN, GRU, TCN, transformer (CV, test set untouched)"]
+    T --> J["Evaluate the winner vs champion on the frozen test split"]
+    J -->|all promotion rules pass| K["PR: promote models/champion.json"]
     K --> C
 ```
 
@@ -78,11 +79,28 @@ Known limits: small single-person dataset, results do not transfer reliably to o
 rooms or camera angles; random landmarks are scored as a fall; pose extraction (not the model) is
 the latency bottleneck.
 
+## Trying another model
+
+The architecture is a parameter. Every model has the same contract (a 30-frame window in, a fall
+probability out), so the API and the browser demo load whichever one is the champion.
+
+```bash
+python -m fall_detection.tournament --data data/processed            # CNN vs GRU vs TCN vs transformer
+python -m fall_detection.promotion train --arch transformer --data data/processed
+python -m fall_detection.promotion compare --data data/processed      # all rules, report in reports/
+gh workflow run promote.yml -f arch=auto                               # same, in CI, opens a PR
+```
+
+The tournament compares architectures by cross-validation **outside** the frozen test split;
+only the winner is judged on it, once. It is promoted only if: the F1 gain is proven (lower bound
+of the 95 % CI above 0), recall does not drop, the ONNX export is faithful, and latency and size
+stay within the browser budget.
+
 ## Repository layout
 
 | Path | Content |
 |---|---|
-| `src/fall_detection/` | Model, inference, API, features, evaluation, monitoring, promotion |
+| `src/fall_detection/` | Architectures, inference, API, evaluation, monitoring, tournament, promotion |
 | `scripts/` | Training, webcam demos, ONNX export, dataset extraction, monitoring entry point |
 | `site/` | Static in-browser demo and the exported ONNX model |
 | `models/` | Champion weights and metadata, frozen test split, drift reference |
