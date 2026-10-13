@@ -1,12 +1,22 @@
 name: Model promotion
-# Trains a candidate, compares it with the champion on the frozen test split and, only if the
-# lower bound of the 95% paired-bootstrap CI of the F1 gain is > 0, opens a promotion PR.
+# Trains a candidate (any architecture), judges it once on the frozen test split and, only if
+# every promotion rule passes (F1 gain proven, no recall drop, faithful ONNX, latency and size
+# budgets), opens a "feat(model): promote ..." PR that the owner reviews and merges.
+#
+#   gh workflow run promote.yml -f arch=auto          # tournament picks the architecture
+#   gh workflow run promote.yml -f arch=transformer   # force one architecture
 #
 # Needs (owner-managed): secret DATA_URL pointing to a PRIVATE copy of data/processed.tar.gz,
 # and secret PROMOTE_TOKEN (GitHub App token or fine-grained PAT, contents + pull-requests write)
 # so that the opened PR triggers the required checks. Skipped until DATA_URL exists.
 on:
   workflow_dispatch:
+    inputs:
+      arch:
+        description: "Candidate architecture (auto = run the tournament first)"
+        type: choice
+        default: auto
+        options: [auto, cnn1d, gru, tcn, transformer]
 permissions:
   contents: read
 jobs:
@@ -35,22 +45,34 @@ jobs:
           pip install -e . --no-deps
           mkdir -p data/processed
           curl -fsSL "$DATA_URL" | tar -xz -C data/processed
+      - id: tournament
+        if: env.HAS_DATA == 'true' && inputs.arch == 'auto'
+        run: |
+          python -m fall_detection.tournament --data data/processed --out reports/tournament
+          cat reports/tournament/tournament.md >> "$GITHUB_STEP_SUMMARY"
       - id: compare
         if: env.HAS_DATA == 'true'
+        env:
+          ARCH: ${{ inputs.arch == 'auto' && steps.tournament.outputs.winner || inputs.arch }}
         run: |
-          python -m fall_detection.promotion train --data data/processed
+          python -m fall_detection.promotion train --data data/processed --arch "$ARCH"
           python -m fall_detection.promotion compare --data data/processed --apply
       - name: Re-export the browser model
         if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
         run: python scripts/export_onnx.py
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_DATA == 'true'
+        with:
+          name: promotion-report
+          path: reports/
       - name: Open the promotion PR
         if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.PROMOTE_TOKEN }}
           branch: model/promote
-          title: "feat(model): promote candidate to champion"
-          commit-message: "feat(model): promote candidate to champion"
+          title: "feat(model): promote ${{ steps.compare.outputs.arch }} candidate to champion"
+          commit-message: "feat(model): promote ${{ steps.compare.outputs.arch }} candidate to champion"
           body-path: reports/promotion.json
           add-paths: |
             models/champion.pth

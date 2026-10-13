@@ -1,5 +1,6 @@
 {
   "version": "0.2.0",
+  "arch": "cnn1d",
   "weights_file": "models/champion.pth",
   "weights_sha256": "2007ef12160da152bec0bf92ce28ac50e318a6936ba6be104e95716d3756c751",
   "architecture": "FallCNN1D(input_channels=132, seq_length=30), 31489 parameters",

@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from fall_detection.model import FallCNN1D
+from fall_detection.architectures import DEFAULT_ARCH, build_model
 
 WINDOW = 30  # frames per window, must match training (scripts/extract_pose_dataset.py)
 N_FEATURES = 132  # 33 landmarks x (x, y, z, visibility)
@@ -25,9 +25,11 @@ class Prediction:
     window_scores: list[float]
 
 
-def load_model(path: str | os.PathLike | None = None) -> FallCNN1D:
+def load_model(path: str | os.PathLike | None = None, arch: str | None = None) -> torch.nn.Module:
+    """Load weights; the architecture comes from `arch`, else from the champion metadata."""
     path = path or os.environ.get("FALL_MODEL_PATH", DEFAULT_MODEL_PATH)
-    model = FallCNN1D(input_channels=N_FEATURES, seq_length=WINDOW)
+    arch = arch or load_metadata().get("arch", DEFAULT_ARCH)
+    model = build_model(arch, input_channels=N_FEATURES, seq_length=WINDOW)
     model.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
     return model.eval()
 
@@ -47,7 +49,7 @@ def sliding_windows(frames: np.ndarray, size: int = WINDOW, stride: int = 15) ->
     return np.stack([frames[s : s + size] for s in starts]).astype(np.float32)
 
 
-def score_windows(model: FallCNN1D, windows: np.ndarray) -> np.ndarray:
+def score_windows(model: torch.nn.Module, windows: np.ndarray) -> np.ndarray:
     """Fall probability of each (n, 30, 132) window."""
     with torch.no_grad():
         x = torch.from_numpy(windows).permute(0, 2, 1)  # (n, 132, 30), as in training
@@ -55,7 +57,7 @@ def score_windows(model: FallCNN1D, windows: np.ndarray) -> np.ndarray:
 
 
 def predict(
-    model: FallCNN1D, frames: np.ndarray, threshold: float = 0.5, stride: int = 15
+    model: torch.nn.Module, frames: np.ndarray, threshold: float = 0.5, stride: int = 15
 ) -> Prediction:
     """A clip is a fall if any of its windows exceeds the threshold."""
     scores = score_windows(model, sliding_windows(frames, stride=stride))
