@@ -30,9 +30,9 @@ jobs:
           if [ "$HAS_DATA" != "true" ]; then
             echo "DATA_URL secret not configured: nothing to do."; exit 0
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.HAS_DATA == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: env.HAS_DATA == 'true'
         with:
           python-version: "3.11"
@@ -60,7 +60,7 @@ jobs:
       - name: Re-export the browser model
         if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
         run: python scripts/export_onnx.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.HAS_DATA == 'true'
         with:
           name: promotion-report
