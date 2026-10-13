@@ -118,3 +118,29 @@ keeps the video id of each window so splits are exact.
 
 Code: `src/fall_detection/features.py`, `scripts/feature_experiment.py`
 (`docs/feature_experiment.json` has the raw numbers). The features are not used in production.
+
+## Architecture tournament (first run)
+
+`python -m fall_detection.tournament`, 2 seeds, group-wise 5-fold CV on the 233 windows outside
+the frozen test split (the test split is not looked at). All four architectures are about the
+same size (19 k to 31 k parameters), export faithfully to ONNX and run in under 0.2 ms per window.
+
+| Architecture | F1 | Recall | Accuracy | Delta F1 vs CNN (95 % CI) |
+|---|---|---|---|---|
+| CNN 1D (champion) | 0.564 | 0.481 | 0.745 | - |
+| GRU | 0.662 | 0.625 | 0.777 | +0.093 (+0.011 to +0.181) |
+| TCN | 0.619 | 0.531 | 0.775 | +0.023 (-0.031 to +0.076) |
+| Transformer | 0.742 | 0.713 | 0.828 | +0.169 (+0.076 to +0.268) |
+
+The transformer won and was then judged once on the frozen test split (61 windows):
+
+| | Accuracy | Precision | Recall | F1 | Missed falls | False alarms |
+|---|---|---|---|---|---|---|
+| CNN 1D (champion 0.2.0) | 0.852 | 0.762 | 0.800 | 0.780 | 4 | 5 |
+| Transformer (candidate) | 0.852 | 0.923 | 0.600 | 0.727 | 8 | 1 |
+
+**Not promoted.** The F1 gain is not proven (95 % CI -0.21 to +0.14) and recall drops by 0.20:
+the transformer trades missed falls for fewer false alarms, which the rules forbid for a fall
+detector. The cross-validation lead did not survive the held-out test: with 294 windows from one
+person, both numbers are noisy, and the frozen split is exactly what keeps such a lead from being
+shipped on luck. To rerun once more data exists: `gh workflow run promote.yml -f arch=auto`.
