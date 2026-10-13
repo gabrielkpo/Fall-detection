@@ -4,7 +4,30 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Conventional Commits titles, so the PR title check passes
+    commit-message:
+      prefix: "chore(deps)"
+    # one PR per week instead of one per package
+    groups:
+      python:
+        patterns: ["*"]
+    ignore:
+      # mediapipe 0.10.18 is the last release with the pose solution API used here, and it
+      # needs numpy<2; Gradio and OpenCV majors change the demo/API behaviour
+      - dependency-name: "mediapipe"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "numpy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "gradio"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "opencv-python*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns: ["*"]
