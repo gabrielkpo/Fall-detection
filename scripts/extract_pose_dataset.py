@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Sun Jun  1 22:08:07 2025
 @author: gabriel
@@ -12,11 +10,12 @@ pour un futur entraînement d’un modèle d’IA (ex : CNN 1D).
 
 # === Importation des bibliothèques nécessaires ===
 
-import os                          # Pour parcourir les dossiers/fichiers du système
-import numpy as np                 # Pour stocker les données efficacement et faire des calculs scientifiques
-import cv2                         # Pour charger et manipuler les images (OpenCV)
-import mediapipe as mp             # Pour la détection des poses humaines (MediaPipe Pose)
-from tqdm import tqdm              # Pour afficher une barre de progression
+import os  # Pour parcourir les dossiers/fichiers du système
+
+import cv2  # Pour charger et manipuler les images (OpenCV)
+import mediapipe as mp  # Pour la détection des poses humaines (MediaPipe Pose)
+import numpy as np  # Pour stocker les données efficacement et faire des calculs scientifiques
+from tqdm import tqdm  # Pour afficher une barre de progression
 
 # === Paramètres du traitement ===
 
@@ -32,9 +31,9 @@ IMG_SIZE : taille à laquelle toutes les images sont redimensionnées (640x480 p
 Ce redimensionnement permet une homogénéité pour la détection.
 """
 
-SEQUENCE_LENGTH = 30                                  
-DATA_DIRS = {'fall_dataset': 1, 'adl_dataset': 0}  
-IMG_SIZE = (640, 480)  
+SEQUENCE_LENGTH = 30
+DATA_DIRS = {"fall_dataset": 1, "adl_dataset": 0}
+IMG_SIZE = (640, 480)
 
 # === Initialisation de MediaPipe Pose ===
 
@@ -56,10 +55,11 @@ Chaque vecteur = [x1, y1, z1, visibility1, x2, y2, z2, visibility2, ..., x33, y3
 y : contiendra les labels associés (1 pour chute, 0 pour activité normale)
 """
 
-X = []  
-y = []   
+X = []
+y = []
 
 # === Fonction d'extraction des coordonnées du squelette ===
+
 
 def extract_landmarks(frame):
     """
@@ -71,42 +71,48 @@ def extract_landmarks(frame):
     """
     # MediaPipe attend une image en RGB (OpenCV charge en BGR)
     results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    
+
     # Vérifie que les points sont détectés, puis les aplatit en un seul vecteur
     if results.pose_landmarks:
-        return [coord for lm in results.pose_landmarks.landmark
-                for coord in (lm.x, lm.y, lm.z, lm.visibility)]
+        return [
+            coord
+            for lm in results.pose_landmarks.landmark
+            for coord in (lm.x, lm.y, lm.z, lm.visibility)
+        ]
     else:
         return None
+
 
 # === Parcours des dossiers de données ===
 
 for folder, label in DATA_DIRS.items():
     print(f"Traitement de {folder}...")
     folder_path = os.path.join(os.getcwd(), folder)  # Chemin absolu du dossier à traiter
-    
+
     """
     On liste tous les sous-dossiers valides du dossier (chacun représentant une vidéo en frames).
     Ex : fall_dataset/sequence_01/, fall_dataset/sequence_02/, etc.
     On ignore les fichiers cachés comme .DS_Store (macOS) avec os.path.isdir.
     """
-    subfolders = [f for f in sorted(os.listdir(folder_path)) if os.path.isdir(os.path.join(folder_path, f))]
+    subfolders = [
+        f for f in sorted(os.listdir(folder_path)) if os.path.isdir(os.path.join(folder_path, f))
+    ]
 
     for subfolder in tqdm(subfolders):  # Affiche la progression avec tqdm
         subfolder_path = os.path.join(folder_path, subfolder)
         frames = sorted(os.listdir(subfolder_path))  # Liste les images dans le bon ordre
-        
+
         landmarks_seq = []  # Cette liste contiendra les 30 vecteurs extraits pour cette séquence
 
         for frame_name in frames:
             frame_path = os.path.join(subfolder_path, frame_name)
             frame = cv2.imread(frame_path)  # Charge l’image
-            
+
             if frame is None:
                 continue  # Si l’image est illisible, on la saute
-            
+
             frame = cv2.resize(frame, IMG_SIZE)  # Redimensionne pour homogénéiser l’entrée
-            
+
             landmarks = extract_landmarks(frame)  # Détecte les points MediaPipe
             if landmarks:
                 landmarks_seq.append(landmarks)  # Ajoute le vecteur (132 valeurs)
@@ -114,8 +120,8 @@ for folder, label in DATA_DIRS.items():
             # Une séquence de 30 frames est atteinte => on l’enregistre
             if len(landmarks_seq) == SEQUENCE_LENGTH:
                 X.append(landmarks_seq)  # Ajoute la séquence à X
-                y.append(label)          # Ajoute le label correspondant (1 ou 0)
-                landmarks_seq = []       # Réinitialise pour la séquence suivante
+                y.append(label)  # Ajoute le label correspondant (1 ou 0)
+                landmarks_seq = []  # Réinitialise pour la séquence suivante
 
 # === Sauvegarde finale des données ===
 

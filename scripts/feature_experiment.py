@@ -1,6 +1,6 @@
 """Compare input representations with group-wise cross-validation (same protocol as docs/EVALUATION.md).
 
-    python scripts/feature_experiment.py --data data/processed --seeds 3
+python scripts/feature_experiment.py --data data/processed --seeds 3
 """
 
 from __future__ import annotations
@@ -56,7 +56,8 @@ def main() -> None:
         metrics = [evaluation.confusion(y, (o > 0.5).astype(int)) for o in runs]
         oofs[name] = np.mean(runs, axis=0)  # average probability over seeds for paired tests
         results[name] = {
-            k: [round(float(m[k]), 3) for m in metrics] for k in ("accuracy", "precision", "recall", "f1")
+            k: [round(float(m[k]), 3) for m in metrics]
+            for k in ("accuracy", "precision", "recall", "f1")
         }
         print(name, {k: round(float(np.mean(v)), 3) for k, v in results[name].items()}, flush=True)
 
@@ -66,7 +67,9 @@ def main() -> None:
             continue
         b = paired_bootstrap_f1(y, oofs[base], oofs[name], groups, n_boot=1000)
         results[name]["delta_f1_vs_raw"] = b
-        print(name, "delta F1 vs raw:", round(b["delta_f1_mean"], 3), [round(v, 3) for v in b["ci95"]])
+        print(
+            name, "delta F1 vs raw:", round(b["delta_f1_mean"], 3), [round(v, 3) for v in b["ci95"]]
+        )
     with open(args.out, "w") as f:
         json.dump(results, f, indent=2)
 

@@ -1,7 +1,7 @@
 """Monthly drift check.
 
-    python scripts/monitor.py --build-reference --data data/processed   # once, needs X.npy
-    python scripts/monitor.py                                            # CI / cron
+python scripts/monitor.py --build-reference --data data/processed   # once, needs X.npy
+python scripts/monitor.py                                            # CI / cron
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def build_reference(data_dir: str, out: str) -> None:
     meta = inference.load_metadata()
     payload = {
         "model_version": meta.get("version"),
-        "n": int(len(X)),
+        "n": len(X),
         "feature_names": monitoring.FEATURES,
         "features": monitoring.window_features(X).round(5).tolist(),
         "scores": scores.round(5).tolist(),
@@ -40,20 +40,26 @@ def to_markdown(report: dict) -> str:
         "# Monthly drift report",
         "",
         f"Model version: `{report['model_version']}`  ",
-        f"Monitor self-test: **{'passed' if report['self_test']['passed'] else 'FAILED'}** "
-        "(quiet on a resample, fires on an injected shift)",
+        (
+            f"Monitor self-test: **{'passed' if report['self_test']['passed'] else 'FAILED'}** "
+            "(quiet on a resample, fires on an injected shift)"
+        ),
         "",
     ]
     cur = report.get("current")
     if cur is None:
         lines += [
-            "No production data this month (`models/monitoring_current.jsonl` absent). The browser demo "
-            "sends nothing; only a self-hosted API with `FALL_LOG_PATH` produces logs.",
+            (
+                "No production data this month (`models/monitoring_current.jsonl` absent). The browser demo "
+                "sends nothing; only a self-hosted API with `FALL_LOG_PATH` produces logs."
+            ),
         ]
     else:
         lines += [
-            f"Windows compared: {cur['n_current']} (reference {cur['n_reference']}). "
-            f"Positive rate {cur['positive_rate_reference']:.2f} -> {cur['positive_rate_current']:.2f}",
+            (
+                f"Windows compared: {cur['n_current']} (reference {cur['n_reference']}). "
+                f"Positive rate {cur['positive_rate_reference']:.2f} -> {cur['positive_rate_current']:.2f}"
+            ),
             "",
             "| Feature | KS | p | PSI | Drift |",
             "|---|---|---|---|---|",
