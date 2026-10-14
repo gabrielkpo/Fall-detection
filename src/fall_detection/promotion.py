@@ -18,6 +18,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -181,10 +182,26 @@ def write_champion(
                 "caveat": note,
             },
             "dataset_sha256": split["dataset_sha256"],
-            "git_sha": os.environ.get("GITHUB_SHA", "local"),
+            "git_sha": _git_sha(),
         }
     )
     Path(CHAMPION_META).write_text(json.dumps(meta, indent=2) + "\n")
+
+
+def _git_sha() -> str:
+    """Commit the candidate was trained from; "-dirty" if the working tree had local changes."""
+    if os.environ.get("GITHUB_SHA"):
+        return os.environ["GITHUB_SHA"]
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return f"{sha}-dirty" if dirty else sha
 
 
 def main() -> None:

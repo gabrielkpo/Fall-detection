@@ -16,5 +16,6 @@
   },
   "threshold": 0.5,
   "dataset_sha256": "5f468253eccccc9c48c5d2d3c756d16d184034485e388c801b9301b1cc956f60",
-  "git_sha": "local"
+  "git_sha": "d77c34ba2c0d7d0fac67e20ea11233e39d43937a",
+  "git_sha_note": "trained locally on 2026-10-12 and committed in this commit (PR #6); later champions record the training commit automatically"
 }
