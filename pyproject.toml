@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "fall-detection"
 version = "0.1.0"
 description = "Real-time fall detection: MediaPipe pose landmarks + 1D CNN"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["numpy", "torch"]
 
 [project.optional-dependencies]
@@ -28,7 +28,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["scripts"]  # legacy scripts, cleaned up in a later PR
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

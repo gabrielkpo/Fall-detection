@@ -46,8 +46,8 @@ flowchart LR
 ## Quick start
 
 ```bash
-pip install -e ".[train,dev]"
-python scripts/run_webcam_alerts.py          # camera, sound alarm, desktop notification
+pip install -e ".[train,dev]"   # Python 3.10+
+python scripts/run_webcam.py     # webcam, champion model, press q to quit (nothing is saved)
 ```
 
 **API in Docker**
