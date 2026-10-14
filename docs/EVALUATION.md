@@ -13,8 +13,9 @@ Raw output: [`evaluation.json`](evaluation.json).
 ## Protocol
 
 Stratified, group-wise 5-fold cross-validation: all windows of a pseudo-video are in the same
-fold, so the model is always scored on videos it has never seen. Training recipe is the one of
-`scripts/train.py` (Adam 1e-3, BCE, batch 32, early stopping on a group-wise validation slice).
+fold, so the model is always scored on videos it has never seen. Training recipe is the original
+one (Adam 1e-3, BCE, batch 32), with early stopping on a group-wise validation slice instead of
+the random split of the first training script, which leaked windows of a video across splits.
 Threshold 0.5. Every window is predicted exactly once (out-of-fold).
 
 ## Results (out-of-video, n = 294)

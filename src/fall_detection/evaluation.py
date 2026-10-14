@@ -94,7 +94,7 @@ def train_one(
     channels: int = 132,
     arch: str = DEFAULT_ARCH,
 ):
-    """Same recipe as scripts/train.py: Adam 1e-3, BCE, batch 32, early stopping on val loss."""
+    """Original training recipe: Adam 1e-3, BCE, batch 32, early stopping on val loss."""
     torch.manual_seed(seed)
     model = build_model(arch, input_channels=channels, seq_length=Xtr.shape[1])
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)

@@ -1,142 +1,75 @@
-"""
-Created on Sun Jun  1 22:08:07 2025
-@author: gabriel
+"""Build the original training set from videos stored as frame folders.
 
-Ce script traite des dossiers contenant des vidéos décomposées en frames (images),
-utilise MediaPipe pour détecter les points du squelette humain dans chaque frame,
-et stocke ces données (positions des points clés) dans des tableaux .npy
-pour un futur entraînement d’un modèle d’IA (ex : CNN 1D).
-"""
+Layout (labels come from the top-level folder names):
 
-# === Importation des bibliothèques nécessaires ===
+    fall_dataset/<sequence>/frame_0001.png ...   label 1
+    adl_dataset/<sequence>/frame_0001.png ...    label 0 (activities of daily living)
 
-import os  # Pour parcourir les dossiers/fichiers du système
+Each frame is resized to 640x480, MediaPipe Pose extracts 33 landmarks x (x, y, z, visibility)
+= 132 values, frames without a detected person are skipped, and every 30 consecutive
+detections become one non-overlapping window. Writes X.npy (n, 30, 132) and y.npy (n,).
 
-import cv2  # Pour charger et manipuler les images (OpenCV)
-import mediapipe as mp  # Pour la détection des poses humaines (MediaPipe Pose)
-import numpy as np  # Pour stocker les données efficacement et faire des calculs scientifiques
-from tqdm import tqdm  # Pour afficher une barre de progression
+No video id is saved, which is why evaluation rebuilds groups heuristically; new data should
+go through scripts/ingest_clips.py instead, which keeps it.
 
-# === Paramètres du traitement ===
-
-"""
-SEQUENCE_LENGTH : nombre de frames utilisées pour créer une séquence de données.
-Ex : 30 frames consécutives = 1 séquence pour prédire une chute ou pas.
-
-DATA_DIRS : dictionnaire qui associe chaque dossier à un label :
-- 'fall_dataset' contient des chutes => label = 1
-- 'adl_dataset' (Activities of Daily Living) contient des mouvements normaux => label = 0
-
-IMG_SIZE : taille à laquelle toutes les images sont redimensionnées (640x480 pixels ici).
-Ce redimensionnement permet une homogénéité pour la détection.
+    python scripts/extract_pose_dataset.py --root . --out data/processed
 """
 
-SEQUENCE_LENGTH = 30
-DATA_DIRS = {"fall_dataset": 1, "adl_dataset": 0}
-IMG_SIZE = (640, 480)
+from __future__ import annotations
 
-# === Initialisation de MediaPipe Pose ===
+import argparse
+from pathlib import Path
 
-"""
-On utilise MediaPipe Pose en mode "static_image_mode=True" pour traiter des images indépendantes,
-et non pas une vidéo en temps réel (sinon, le tracking serait activé).
-Cela permet de traiter chaque frame comme une image à part entière.
-"""
+import cv2
+import mediapipe as mp
+import numpy as np
+from tqdm import tqdm
 
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(static_image_mode=True)
+from fall_detection.inference import N_FEATURES, WINDOW
+from fall_detection.pose import IMG_SIZE
 
-# === Création des listes pour stocker les données finales ===
-
-"""
-X : contiendra des séquences de points clés (liste de listes de vecteurs de 132 valeurs).
-Chaque vecteur = [x1, y1, z1, visibility1, x2, y2, z2, visibility2, ..., x33, y33, z33, visibility33]
-
-y : contiendra les labels associés (1 pour chute, 0 pour activité normale)
-"""
-
-X = []
-y = []
-
-# === Fonction d'extraction des coordonnées du squelette ===
+LABELS = {"fall_dataset": 1, "adl_dataset": 0}
 
 
-def extract_landmarks(frame):
-    """
-    Utilise MediaPipe pour détecter les 33 points clés du squelette humain sur une image donnée.
-    Chaque point fournit 4 valeurs : x, y, z, visibility (probabilité que le point soit fiable).
-    => On obtient 33 * 4 = 132 valeurs au total.
-
-    Si aucun squelette n’est détecté, on retourne None.
-    """
-    # MediaPipe attend une image en RGB (OpenCV charge en BGR)
-    results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-
-    # Vérifie que les points sont détectés, puis les aplatit en un seul vecteur
-    if results.pose_landmarks:
-        return [
-            coord
-            for lm in results.pose_landmarks.landmark
-            for coord in (lm.x, lm.y, lm.z, lm.visibility)
-        ]
-    else:
+def landmarks(pose, frame: np.ndarray) -> list[float] | None:
+    result = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    if not result.pose_landmarks:
         return None
+    return [v for lm in result.pose_landmarks.landmark for v in (lm.x, lm.y, lm.z, lm.visibility)]
 
 
-# === Parcours des dossiers de données ===
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--root", type=Path, default=Path("."), help="folder holding the datasets")
+    parser.add_argument("--out", type=Path, default=Path("data/processed"))
+    args = parser.parse_args()
 
-for folder, label in DATA_DIRS.items():
-    print(f"Traitement de {folder}...")
-    folder_path = os.path.join(os.getcwd(), folder)  # Chemin absolu du dossier à traiter
+    X: list[list[list[float]]] = []
+    y: list[int] = []
+    # static_image_mode: each frame is detected on its own, as in the original extraction
+    with mp.solutions.pose.Pose(static_image_mode=True) as pose:
+        for folder, label in LABELS.items():
+            sequences = sorted(p for p in (args.root / folder).iterdir() if p.is_dir())
+            for seq in tqdm(sequences, desc=folder):
+                window: list[list[float]] = []
+                for frame_path in sorted(seq.iterdir()):
+                    frame = cv2.imread(str(frame_path))
+                    if frame is None:
+                        continue  # not an image
+                    row = landmarks(pose, cv2.resize(frame, IMG_SIZE))
+                    if row is not None:
+                        window.append(row)
+                    if len(window) == WINDOW:
+                        X.append(window)
+                        y.append(label)
+                        window = []
 
-    """
-    On liste tous les sous-dossiers valides du dossier (chacun représentant une vidéo en frames).
-    Ex : fall_dataset/sequence_01/, fall_dataset/sequence_02/, etc.
-    On ignore les fichiers cachés comme .DS_Store (macOS) avec os.path.isdir.
-    """
-    subfolders = [
-        f for f in sorted(os.listdir(folder_path)) if os.path.isdir(os.path.join(folder_path, f))
-    ]
+    args.out.mkdir(parents=True, exist_ok=True)
+    X_arr = np.asarray(X, dtype=np.float32).reshape(-1, WINDOW, N_FEATURES)
+    np.save(args.out / "X.npy", X_arr)
+    np.save(args.out / "y.npy", np.asarray(y, dtype=np.int64))
+    print(f"{len(X_arr)} windows, shape {X_arr.shape} → {args.out}")
 
-    for subfolder in tqdm(subfolders):  # Affiche la progression avec tqdm
-        subfolder_path = os.path.join(folder_path, subfolder)
-        frames = sorted(os.listdir(subfolder_path))  # Liste les images dans le bon ordre
 
-        landmarks_seq = []  # Cette liste contiendra les 30 vecteurs extraits pour cette séquence
-
-        for frame_name in frames:
-            frame_path = os.path.join(subfolder_path, frame_name)
-            frame = cv2.imread(frame_path)  # Charge l’image
-
-            if frame is None:
-                continue  # Si l’image est illisible, on la saute
-
-            frame = cv2.resize(frame, IMG_SIZE)  # Redimensionne pour homogénéiser l’entrée
-
-            landmarks = extract_landmarks(frame)  # Détecte les points MediaPipe
-            if landmarks:
-                landmarks_seq.append(landmarks)  # Ajoute le vecteur (132 valeurs)
-
-            # Une séquence de 30 frames est atteinte => on l’enregistre
-            if len(landmarks_seq) == SEQUENCE_LENGTH:
-                X.append(landmarks_seq)  # Ajoute la séquence à X
-                y.append(label)  # Ajoute le label correspondant (1 ou 0)
-                landmarks_seq = []  # Réinitialise pour la séquence suivante
-
-# === Sauvegarde finale des données ===
-
-"""
-X est converti en un tableau NumPy de forme (nb_séquences, 30, 132)
-y est un tableau de labels (nb_séquences,)
-
-Ces fichiers sont stockés en .npy, un format très rapide à charger avec NumPy.
-Ils seront utilisés dans un futur script d'entraînement de modèle.
-"""
-
-X = np.array(X)
-y = np.array(y)
-
-np.save("data/processed/X.npy", X)
-np.save("data/processed/y.npy", y)
-
-print(f"Enregistrement terminé : {X.shape[0]} séquences, forme = {X.shape}")
+if __name__ == "__main__":
+    main()
