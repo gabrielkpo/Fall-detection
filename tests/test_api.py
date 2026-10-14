@@ -46,6 +46,11 @@ def test_predict_rejects_wrong_feature_count(client):
     assert r.status_code == 422
 
 
+def test_predict_rejects_too_many_frames(client):
+    r = client.post("/predict", json={"landmarks": np.zeros((901, 132)).tolist()})
+    assert r.status_code == 422
+
+
 def test_sliding_windows_shape():
     w = inference.sliding_windows(np.zeros((60, 132), dtype=np.float32), stride=10)
     assert w.shape == (4, 30, 132)
