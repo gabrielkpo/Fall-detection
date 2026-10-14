@@ -21,3 +21,4 @@ reports/
 models/monitoring_current.jsonl
 .venv/
 *.egg-info/
+site/vendor/
