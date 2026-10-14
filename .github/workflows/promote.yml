@@ -30,9 +30,9 @@ jobs:
           if [ "$HAS_DATA" != "true" ]; then
             echo "DATA_URL secret not configured: nothing to do."; exit 0
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: env.HAS_DATA == 'true'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         if: env.HAS_DATA == 'true'
         with:
           python-version: "3.11"
@@ -40,11 +40,17 @@ jobs:
         if: env.HAS_DATA == 'true'
         env:
           DATA_URL: ${{ secrets.DATA_URL }}
+          DATA_SHA256: ${{ secrets.DATA_SHA256 }}
         run: |
           pip install --extra-index-url https://download.pytorch.org/whl/cpu torch numpy scikit-learn onnx onnxruntime
           pip install -e . --no-deps
           mkdir -p data/processed
-          curl -fsSL "$DATA_URL" | tar -xz -C data/processed
+          if [ -z "$DATA_SHA256" ]; then
+            echo "DATA_SHA256 secret missing: refusing to unpack an unverified archive."; exit 1
+          fi
+          curl -fsSL "$DATA_URL" -o data.tar.gz
+          echo "$DATA_SHA256  data.tar.gz" | sha256sum -c -
+          tar -xzf data.tar.gz -C data/processed
       - id: tournament
         if: env.HAS_DATA == 'true' && inputs.arch == 'auto'
         run: |
@@ -60,14 +66,14 @@ jobs:
       - name: Re-export the browser model
         if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
         run: python scripts/export_onnx.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: env.HAS_DATA == 'true'
         with:
           name: promotion-report
           path: reports/
       - name: Open the promotion PR
         if: env.HAS_DATA == 'true' && steps.compare.outputs.promote == 'true'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           token: ${{ secrets.PROMOTE_TOKEN }}
           branch: model/promote

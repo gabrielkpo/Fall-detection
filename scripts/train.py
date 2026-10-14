@@ -1,18 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Sun Jun  1 21:34:09 2025
 
 @author: gabriel
 """
 
-import torch 
-import torch.nn as nn
 import numpy as np
+import torch
 from sklearn.model_selection import train_test_split
-from torch.utils.data import TensorDataset, DataLoader
-from fall_detection.model import FallCNN1D
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
 
+from fall_detection.model import FallCNN1D
 
 # === 1. Chargement des données ===
 
@@ -21,7 +19,7 @@ On charge les fichiers numpy contenant les données brutes sous forme de matrice
 - X contient les séquences temporelles de données (30 frames × 132 caractéristiques par frame).
 - y contient les labels binaires (0 pour ADL, 1 pour chute).
 """
-X = np.load("data/processed/X.npy")  
+X = np.load("data/processed/X.npy")
 y = np.load("data/processed/y.npy")
 
 """
@@ -30,7 +28,9 @@ On convertit en float32 pour réduire la taille mémoire et pour compatibilité 
 Cela accélère aussi les calculs.
 """
 X = X.astype(np.float32)
-y = y.astype(np.float32)  # La BCE Loss de PyTorch attend des labels float (probabilités entre 0 et 1)
+y = y.astype(
+    np.float32
+)  # La BCE Loss de PyTorch attend des labels float (probabilités entre 0 et 1)
 
 # === 2. Split du dataset ===
 
@@ -46,7 +46,8 @@ et enfin de tester sa généralisation finale (test).
 
 # Séparation initiale train (80%) et temporaire (20%)
 X_train, X_temp, y_train, y_temp = train_test_split(
-    X, y, test_size=0.2, stratify=y, random_state=42)
+    X, y, test_size=0.2, stratify=y, random_state=42
+)
 """
 stratify=y garantit que la proportion de classes (chute / pas chute) est conservée dans les splits,
 évite un déséquilibre non voulu dans les sous-ensembles.
@@ -55,7 +56,8 @@ random_state fixe la graine aléatoire pour reproductibilité.
 
 # Division de la partie temporaire en val (10%) et test (10%)
 X_val, X_test, y_val, y_test = train_test_split(
-    X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
+    X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42
+)
 # test_size=0.5 pour couper la partie 20% en deux parts égales
 
 
@@ -110,7 +112,7 @@ On surveillera la perte de validation pour détecter cela.
 """
 
 # Paramètres pour early stopping
-best_val_loss = float('inf')
+best_val_loss = float("inf")
 patience = 50
 counter = 0
 
@@ -118,7 +120,7 @@ for epoch in range(num_epochs):
     model.train()  # Passage en mode entraînement (activate dropout, batchnorm, etc.)
     train_loss = 0.0  # Accumulateur pour la perte moyenne sur epoch
     correct = 0  # Compteur pour le nombre de prédictions correctes
-    total = 0    # Nombre total d'exemples vus
+    total = 0  # Nombre total d'exemples vus
 
     for inputs, labels in train_loader:
         """
@@ -152,7 +154,7 @@ for epoch in range(num_epochs):
         total += labels.size(0)  # Nombre d'exemples dans ce batch
 
     avg_train_loss = train_loss / total  # Perte moyenne par exemple sur l'epoch
-    train_acc = correct / total          # Précision moyenne sur l'epoch
+    train_acc = correct / total  # Précision moyenne sur l'epoch
 
     # === Validation (pas de mise à jour du modèle) ===
     model.eval()  # Mode évaluation désactive dropout, batchnorm fixées, pas de calcul de gradient
@@ -161,7 +163,9 @@ for epoch in range(num_epochs):
     val_correct = 0
     val_total = 0
 
-    with torch.no_grad():  # Désactive le calcul des gradients pour économiser la mémoire et le calcul
+    with (
+        torch.no_grad()
+    ):  # Désactive le calcul des gradients pour économiser la mémoire et le calcul
         for inputs, labels in val_loader:
             inputs = inputs.permute(0, 2, 1)
             outputs = model(inputs).squeeze()
@@ -174,9 +178,11 @@ for epoch in range(num_epochs):
     avg_val_loss = val_loss / val_total
     val_acc = val_correct / val_total
 
-    print(f"[{epoch+1}/{num_epochs}] "
-          f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f} | "
-          f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+    print(
+        f"[{epoch + 1}/{num_epochs}] "
+        f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f} | "
+        f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}"
+    )
 
     # === Early stopping ===
     if avg_val_loss < best_val_loss:
@@ -186,5 +192,5 @@ for epoch in range(num_epochs):
     else:
         counter += 1
         if counter >= patience:
-            print(f"Early stopping triggered at epoch {epoch+1}")
+            print(f"Early stopping triggered at epoch {epoch + 1}")
             break

@@ -19,3 +19,5 @@ data/videos/
 .DS_Store
 reports/
 models/monitoring_current.jsonl
+.venv/
+*.egg-info/

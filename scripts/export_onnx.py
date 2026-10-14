@@ -1,6 +1,6 @@
 """Export the champion to ONNX for the in-browser demo, with a parity check against PyTorch.
 
-    python scripts/export_onnx.py            # writes site/model.onnx
+python scripts/export_onnx.py            # writes site/model.onnx
 """
 
 from __future__ import annotations

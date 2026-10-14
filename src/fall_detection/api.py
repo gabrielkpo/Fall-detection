@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, UploadFile
@@ -13,12 +14,15 @@ from pydantic import BaseModel, Field
 from fall_detection import inference, monitoring
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_FRAMES = 900  # 30 s at 30 fps; videos are read up to pose.extract_landmarks max_frames
 THRESHOLD = float(os.environ.get("FALL_THRESHOLD", "0.5"))
 
 
 class LandmarkRequest(BaseModel):
-    landmarks: list[list[float]] = Field(
-        description="n_frames x 132 values (33 MediaPipe landmarks x x,y,z,visibility), n >= 30"
+    landmarks: list[Annotated[list[float], Field(max_length=inference.N_FEATURES)]] = Field(
+        description="n_frames x 132 values (33 MediaPipe landmarks x x,y,z,visibility), "
+        f"30 <= n <= {MAX_FRAMES}",
+        max_length=MAX_FRAMES,
     )
 
 

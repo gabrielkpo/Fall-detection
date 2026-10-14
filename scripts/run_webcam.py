@@ -1,79 +1,78 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Real-time fall detection on the default webcam, with the promoted champion model.
 
-"""Real-time fall detection on the default webcam.
+Run from the repository root after `pip install -e ".[train]"`:
+    python scripts/run_webcam.py            # press q to quit
 
-Run from the repository root:
-    python scripts/run_webcam.py
+Nothing is saved to disk. A fall is reported after `--consecutive` windows above the
+threshold, with a terminal bell. Research prototype, not a safety system.
 """
 
+from __future__ import annotations
 
-import torch
-import numpy as np
-from fall_detection.model import FallCNN1D
-import cv2
-import mediapipe as mp
+import argparse
 from collections import deque
 
-# === Charger le modèle ===
-model = FallCNN1D(input_channels=132, seq_length=30)
-model.load_state_dict(torch.load("models/best_model.pth"))
-model.eval()
+import cv2
+import mediapipe as mp
+import numpy as np
 
-# === Prédiction ===
-def predict_fall(sequence_30x132):
-    x = torch.tensor(sequence_30x132, dtype=torch.float32).unsqueeze(0).permute(0, 2, 1)
-    with torch.no_grad():
-        output = model(x).item()
-    return 1 if output > 0.5 else 0, output  # 1 = chute, 0 = ADL
+from fall_detection import inference
+from fall_detection.pose import IMG_SIZE
 
-# === Initialisation ===
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
-cap = cv2.VideoCapture(0)
-sequence_buffer = deque(maxlen=30)
 
-with mp_pose.Pose(
-    static_image_mode=False,
-    model_complexity=1,
-    enable_segmentation=False,
-    min_detection_confidence=0.5
-) as pose:
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+def main() -> None:
+    meta = inference.load_metadata()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--camera", type=int, default=0, help="OpenCV camera index")
+    parser.add_argument("--threshold", type=float, default=meta.get("threshold", 0.5))
+    parser.add_argument("--consecutive", type=int, default=3, help="windows above threshold")
+    args = parser.parse_args()
 
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(frame_rgb)
+    model = inference.load_model()
+    buffer: deque[list[float]] = deque(maxlen=inference.WINDOW)
+    above = 0
+    cap = cv2.VideoCapture(args.camera)
+    if not cap.isOpened():
+        raise SystemExit(f"cannot open camera {args.camera}")
 
-        if results.pose_landmarks:
-            landmarks = results.pose_landmarks.landmark
-            features = [coord for lm in landmarks for coord in (lm.x, lm.y, lm.z, lm.visibility)]
-            sequence_buffer.append(features)
+    with mp.solutions.pose.Pose(min_detection_confidence=0.5) as pose:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            frame = cv2.resize(frame, IMG_SIZE)  # same resize as the training data
+            result = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            if result.pose_landmarks:
+                buffer.append(
+                    [
+                        v
+                        for lm in result.pose_landmarks.landmark
+                        for v in (lm.x, lm.y, lm.z, lm.visibility)
+                    ]
+                )
+                mp.solutions.drawing_utils.draw_landmarks(
+                    frame, result.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
+                )
 
-            mp_drawing.draw_landmarks(
-                frame,
-                results.pose_landmarks,
-                mp_pose.POSE_CONNECTIONS,
-                mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=3),
-                mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
-            )
+            if len(buffer) == inference.WINDOW:
+                window = np.asarray(buffer, dtype=np.float32)[None]
+                score = float(inference.score_windows(model, window)[0])
+                above = above + 1 if score > args.threshold else 0
+                fall = above >= args.consecutive
+                if above == args.consecutive:
+                    print(f"\aFall detected (score {score:.2f})", flush=True)
+                label, color = ("FALL", (0, 0, 255)) if fall else ("ok", (0, 200, 0))
+                cv2.putText(
+                    frame, f"{label} {score:.2f}", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, color, 3
+                )
 
-            if len(sequence_buffer) == 30:
-                sequence_np = np.array(sequence_buffer)
-                label, prob = predict_fall(sequence_np)
+            cv2.imshow("Fall detection (q to quit)", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
 
-                if prob > 0.8:
-                    cv2.putText(frame, "CHUTE", (10, 50),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)
-                else:
-                    cv2.putText(frame, f"ADL ({prob:.2f})", (10, 50),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 2)
+    cap.release()
+    cv2.destroyAllWindows()
 
-        cv2.imshow("Fall Detection", frame)
-        if cv2.waitKey(10) & 0xFF == ord('q'):
-            break
 
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()

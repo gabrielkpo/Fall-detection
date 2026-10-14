@@ -36,7 +36,9 @@ def main() -> None:
 
     X, y, groups, index = [], [], [], []
     videos = sorted(
-        p for label in LABELS for p in (Path(args.clips) / label).glob("*")
+        p
+        for label in LABELS
+        for p in (Path(args.clips) / label).glob("*")
         if p.suffix.lower() in VIDEO_SUFFIXES
     )
     for gid, path in enumerate(videos):
