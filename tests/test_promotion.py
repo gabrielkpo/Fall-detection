@@ -61,3 +61,18 @@ def test_decide_fails_closed_without_onnx_checks():
     champion, candidate, boot, _ = _rules_input()
     promote, _ = decide(champion, candidate, boot, {"parameters": 30_000})
     assert not promote
+
+
+def test_git_sha_prefers_the_ci_commit(monkeypatch):
+    from fall_detection import promotion
+
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    assert promotion._git_sha() == "abc123"
+
+
+def test_git_sha_falls_back_to_the_local_commit(monkeypatch):
+    from fall_detection import promotion
+
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    sha = promotion._git_sha()
+    assert sha == "unknown" or len(sha.removesuffix("-dirty")) == 40
