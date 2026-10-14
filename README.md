@@ -62,7 +62,9 @@ curl -s -F "file=@clip.mp4" localhost:7860/predict/video
 `POST /predict` takes `{"landmarks": [[132 floats] x n_frames]}` (n >= 30) and returns the fall
 flag, the maximum window score and each window score. Interactive docs at `/docs`.
 
-**Browser demo locally:** `python -m http.server -d site`, then open http://localhost:8000.
+**Browser demo locally:** `scripts/fetch_demo_assets.sh` (downloads the MediaPipe and ONNX Runtime
+files into `site/vendor/`, checking each SHA-256), then `python -m http.server -d site` and open
+http://localhost:8000. The page loads nothing from third-party hosts.
 
 ## Results
 
@@ -101,7 +103,7 @@ stay within the browser budget.
 | Path | Content |
 |---|---|
 | `src/fall_detection/` | Architectures, inference, API, evaluation, monitoring, tournament, promotion |
-| `scripts/` | Training, webcam demos, ONNX export, dataset extraction, monitoring entry point |
+| `scripts/` | Webcam demo, dataset extraction and ingestion, ONNX export, monitoring, demo assets |
 | `site/` | Static in-browser demo and the exported ONNX model |
 | `models/` | Champion weights and metadata, frozen test split, drift reference |
 | `docker/` | Dockerfile for the API |
