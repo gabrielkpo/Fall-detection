@@ -10,15 +10,15 @@ requires-python = ">=3.10"
 dependencies = ["numpy", "torch"]
 
 [project.optional-dependencies]
-train = ["scikit-learn>=1.3", "opencv-python>=4.8", "mediapipe==0.10.18", "tqdm>=4.66"]
+train = ["scikit-learn>=1.3", "opencv-python>=4.8", "mediapipe==0.10.35", "tqdm>=4.66"]
 serve = [
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
   "python-multipart>=0.0.9",
-  "opencv-python-headless>=4.8,<5",
-  "mediapipe==0.10.18",
-  "gradio>=5.0,<6",
-  "numpy<2.0",
+  "opencv-python-headless>=4.8,<6",
+  "mediapipe==0.10.35",
+  "gradio>=5.0,<7",
+  "numpy<3.0",
 ]
 export = ["onnx", "onnxruntime"]
 dev = ["pytest>=8.0", "ruff>=0.5", "httpx", "scikit-learn>=1.3"]
